@@ -1,0 +1,2426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StitchCraft Studio</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f4; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .animate-spin { animation: spin 0.8s linear infinite; }
+    input[type=range] { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px; background: #e5e5e3; outline: none; cursor: pointer; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #4f46e5; cursor: pointer; border: 2px solid white; box-shadow: 0 0 0 1px rgba(79,70,229,0.3); }
+    input[type=range]:hover::-webkit-slider-thumb { background: #4338ca; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; border-radius: 7px; padding: 6px 12px; cursor: pointer; transition: all 120ms ease; border: 1px solid transparent; line-height: 1; white-space: nowrap; }
+    .btn-primary { background: #4f46e5; color: white; border-color: #4338ca; box-shadow: 0 1px 3px rgba(79,70,229,0.25); }
+    .btn-primary:hover { background: #4338ca; }
+    .btn-secondary { background: #f4f4f3; color: #3d3d3a; border-color: #e5e5e3; }
+    .btn-secondary:hover { background: #ebebea; border-color: #d4d4d2; }
+    .btn-secondary.active { background: #1a1a18; color: white; border-color: #1a1a18; }
+    .btn-ghost { background: transparent; color: #6b6b68; border-color: transparent; padding: 6px 8px; }
+    .btn-ghost:hover { background: #f4f4f3; color: #1a1a18; }
+    .btn-danger-ghost { background: transparent; color: #ef4444; border-color: transparent; }
+    .btn-danger-ghost:hover { background: #fef2f2; }
+    .btn-sm { font-size: 12px; padding: 4px 8px; gap: 4px; }
+    .btn-icon { padding: 6px; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+    .section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #a0a09d; margin-bottom: 10px; }
+    .panel { background: white; border: 1px solid #e5e5e3; border-radius: 12px; }
+    .divider { height: 1px; background: #f0f0ee; margin: 12px 0; }
+    :focus-visible { outline: 2px solid #4f46e5; outline-offset: 2px; }
+    .tab-active { background: white; color: #1a1a18; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .usage-bar { height: 3px; background: #f0f0ee; border-radius: 2px; overflow: hidden; margin-top: 4px; }
+    .usage-bar-fill { height: 100%; border-radius: 2px; background: #4f46e5; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useRef, useEffect, useCallback } = React;
+
+// ─── Icon System (Lucide icons inline) ───────────────────────────────────────
+const ICONS = {
+  plus:         ["M12 5v14M5 12h14"],
+  folder:       ["M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"],
+  package:      ["M16.5 9.4 7.55 4.24","M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z","M3.27 6.96 12 12.01l8.73-5.05","M12 22.08V12"],
+  pointer:      ["M5 3l14 9-7 1-4 7z"],
+  crop:         ["M6 2v14a2 2 0 0 0 2 2h14","M18 22V8a2 2 0 0 0-2-2H2"],
+  eye:          ["M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7","M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6"],
+  eyeOff:       ["M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24","M1 1l22 22"],
+  wand2:        ["m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72z","M14 7l3 3","M5 6v4","M19 14v4","M10 2v2","M7 8H3","M21 16h-4","M11 3H9"],
+  download:     ["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4","M7 10l5 5 5-5","M12 15V3"],
+  upload:       ["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4","M17 8l-5-5-5 5","M12 3v12"],
+  rotateCcw:    ["M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8","M3 3v5h5"],
+  rotateCw:     ["M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8","M21 3v5h-5"],
+  minus:        ["M5 12h14"],
+  zoomIn:       ["M11 3a8 8 0 1 0 0 16A8 8 0 0 0 11 3z","M21 21l-4.35-4.35","M11 8v6","M8 11h6"],
+  zoomOut:      ["M11 3a8 8 0 1 0 0 16A8 8 0 0 0 11 3z","M21 21l-4.35-4.35","M8 11h6"],
+  x:            ["M18 6 6 18","M6 6l12 12"],
+  trash2:       ["M3 6h18","M8 6V4h8v2","M19 6l-1 14H6L5 6","M10 11v6","M14 11v6"],
+  save:         ["M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z","M17 21v-8H7v8","M7 3v5h8"],
+  check:        ["M20 6 9 17l-5-5"],
+  chevronDown:  ["m6 9 6 6 6-6"],
+  image:        ["M21 15l-5-5L5 21","rect x=3 y=3 width=18 height=18 rx=2 ry=2","M8.5 8.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0"],
+  settings2:    ["M20 7H9","M14 17H3","circle cx=17 cy=17 r=3","circle cx=7 cy=7 r=3"],
+  moreHoriz:    ["circle cx=12 cy=12 r=1","circle cx=19 cy=12 r=1","circle cx=5 cy=12 r=1"],
+  palette:      ["M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2a10 10 0 0 1 10 10 4 4 0 0 1-4 4h-1.07A2 2 0 0 0 15 17.93V18a3 3 0 0 1-3 3z"],
+  layers:       ["M12 2 2 7l10 5 10-5-10-5z","M2 17l10 5 10-5","M2 12l10 5 10-5"],
+  imageIcon:    ["rect x=3 y=3 width=18 height=18 rx=2 ry=2","circle cx=9 cy=9 r=2","M21 15l-5-5L5 21"],
+  sliders:      ["M4 21v-7","M4 10V3","M12 21v-9","M12 8V3","M20 21v-5","M20 12V3","M1 14h6","M9 8h6","M17 16h6"],
+};
+
+const Icon = ({ name, size = 16, strokeWidth = 1.5, className = "" }) => {
+  const paths = ICONS[name] || [];
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"
+      className={className} aria-hidden="true" style={{ display:"inline-block", flexShrink: 0 }}>
+      {paths.map((d, i) => {
+        if (d.startsWith("rect ")) {
+          const parts = {};
+          d.slice(5).split(" ").forEach(p => { const [k,v] = p.split("="); if(k&&v) parts[k] = isNaN(+v)?v:+v; });
+          return <rect key={i} {...parts} />;
+        }
+        if (d.startsWith("circle ")) {
+          const parts = {};
+          d.slice(7).split(" ").forEach(p => { const [k,v] = p.split("="); if(k&&v) parts[k] = isNaN(+v)?v:+v; });
+          return <circle key={i} {...parts} />;
+        }
+        return <path key={i} d={d} />;
+      })}
+    </svg>
+  );
+};
+
+// ─── Color utilities ──────────────────────────────────────────────────────────
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return [r, g, b];
+}
+function rgbToHex(r, g, b) {
+  return "#" + [r, g, b].map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("");
+}
+function colorDistance(a, b) {
+  return Math.sqrt((a[0]-b[0])**2 + (a[1]-b[1])**2 + (a[2]-b[2])**2);
+}
+
+// ─── DMC Color Database ───────────────────────────────────────────────────────
+const DMC_COLORS = [
+  // Whites/Neutrals
+  ["blanc","White","#FFFFFF"],["ecru","Ecru","#F0E8D0"],["3865","Winter White","#FAF8F2"],
+  // Blacks/Grays
+  ["310","Black","#000000"],["317","Pewter Gray","#5F5F5F"],["318","Light Steel Gray","#9B9B9B"],
+  ["413","Dark Pewter Gray","#4D4D4D"],["414","Dark Steel Gray","#6D6D6D"],["415","Pearl Gray","#C4C4C4"],
+  ["762","Very Light Pearl Gray","#E4E4E4"],["3024","Very Light Brown Gray","#D9D3C5"],
+  // Reds
+  ["304","Medium Christmas Red","#A80E12"],["321","Christmas Red","#C42025"],
+  ["326","Very Dark Rose","#A0172B"],["498","Dark Christmas Red","#8B0B0F"],
+  ["666","Bright Christmas Red","#E8192C"],["815","Medium Garnet","#7A0710"],
+  ["816","Garnet","#8C0B0F"],["817","Very Dark Coral Red","#BD1A1E"],
+  // Pinks
+  ["309","Dark Rose","#BC2B47"],["335","Rose","#D83D5E"],["604","Light Cranberry","#F09EC0"],
+  ["760","Salmon","#F08888"],["776","Medium Pink","#F1A0B0"],["818","Baby Pink","#FCCFD8"],
+  ["3326","Light Rose","#F0A0B0"],["3706","Medium Melon","#F87878"],["3712","Medium Salmon","#F07878"],
+  // Oranges
+  ["350","Medium Coral","#D84040"],["351","Coral","#E06868"],["352","Light Coral","#F09898"],
+  ["353","Peach","#F8C0A8"],["606","Bright Orange-Red","#E82010"],["740","Tangerine","#F07818"],
+  ["741","Medium Tangerine","#F09018"],["742","Light Tangerine","#F0B020"],
+  ["900","Dark Burnt Orange","#C43000"],["946","Medium Burnt Orange","#E06F10"],["947","Burnt Orange","#E85A20"],
+  ["3340","Medium Apricot","#F08050"],["3341","Apricot","#F0A070"],["3824","Light Apricot","#F8C0A0"],
+  // Yellows
+  ["307","Lemon","#F5E040"],["444","Dark Lemon","#E8C800"],["445","Light Lemon","#F8F090"],
+  ["725","Topaz","#E0A810"],["726","Light Topaz","#E8C030"],["727","Very Light Topaz","#F5E080"],
+  ["743","Medium Yellow","#F5CC40"],["744","Yellow","#F8E070"],["745","Light Pale Yellow","#FAF0A0"],
+  ["972","Deep Canary","#F0A000"],["973","Bright Canary","#F0C800"],["3078","Very Light Golden Yellow","#FAFAD8"],
+  ["3820","Dark Straw","#D0A040"],["3821","Straw","#E0C060"],["3822","Light Straw","#F0D890"],
+  // Greens
+  ["320","Medium Pistachio Green","#4A7050"],["367","Dark Pistachio Green","#5A8060"],
+  ["368","Light Pistachio Green","#8AB888"],["369","Very Light Pistachio Green","#B8D8B8"],
+  ["470","Light Avocado Green","#6A8040"],["471","Very Light Avocado Green","#90A860"],
+  ["472","Ultra Light Avocado Green","#C0D080"],["699","Christmas Green","#005830"],
+  ["700","Bright Christmas Green","#007838"],["701","Light Christmas Green","#108840"],
+  ["702","Kelly Green","#209848"],["703","Chartreuse","#50B858"],["704","Bright Chartreuse","#80C860"],
+  ["772","Very Light Yellow Green","#D8E8B0"],["890","Ultra Dark Pistachio","#103820"],
+  ["895","Very Dark Hunter Green","#0A3010"],["935","Dark Avocado Green","#3A4A20"],
+  ["937","Medium Avocado Green","#5A6840"],["988","Medium Forest Green","#508050"],
+  ["989","Forest Green","#70A070"],["3346","Hunter Green","#3A6030"],["3347","Medium Yellow Green","#6A8850"],
+  ["3348","Light Yellow Green","#C0D888"],["3364","Pine Green","#588050"],
+  // Teals/Aquas
+  ["943","Medium Aquamarine","#10A880"],["958","Dark Seagreen","#009080"],
+  ["959","Medium Seagreen","#30B0A0"],["964","Light Seagreen","#80D0C0"],
+  ["3812","Very Dark Seagreen","#007868"],["3851","Bright Green","#10C080"],
+  // Blues
+  ["311","Medium Navy Blue","#153058"],["312","Very Dark Baby Blue","#183880"],
+  ["322","Dark Baby Blue","#284898"],["334","Medium Baby Blue","#3858A8"],
+  ["336","Navy Blue","#101870"],["517","Dark Wedgwood","#2860A0"],["518","Light Wedgwood","#4888B8"],
+  ["519","Sky Blue","#70A8C8"],["747","Very Light Sky Blue","#C8E8F0"],
+  ["797","Royal Blue","#203898"],["798","Dark Delft Blue","#3050A0"],
+  ["799","Medium Delft Blue","#5070B0"],["800","Pale Delft Blue","#8090C0"],
+  ["809","Delft Blue","#6080B0"],["813","Light Blue","#5878B0"],
+  ["824","Very Dark Blue","#103080"],["825","Dark Blue","#2858A0"],
+  ["826","Medium Blue","#4070A8"],["827","Very Light Blue","#A0C0D8"],
+  ["996","Medium Electric Blue","#20B0F0"],["3325","Light Baby Blue","#A0C0E0"],
+  ["3755","Baby Blue","#7098C0"],["3765","Very Dark Peacock Blue","#086880"],
+  ["3766","Light Peacock Blue","#48A0B0"],["3811","Very Light Turquoise","#B0D8E0"],
+  ["3843","Electric Blue","#10A0E0"],
+  // Purples
+  ["208","Very Dark Lavender","#704890"],["209","Dark Lavender","#8860A8"],
+  ["210","Medium Lavender","#A080C0"],["211","Light Lavender","#C8A8D8"],
+  ["550","Very Dark Violet","#5A0878"],["552","Medium Violet","#7A28A0"],
+  ["553","Violet","#9040B8"],["554","Light Violet","#B878D0"],
+  ["718","Plum","#8C1060"],["917","Medium Plum","#A01870"],
+  ["3607","Light Plum","#C03080"],["3608","Very Light Plum","#D870A8"],
+  ["3609","Ultra Light Plum","#E8A0C0"],["3837","Ultra Dark Lavender","#5C2878"],
+  // Browns
+  ["300","Very Dark Mahogany","#6A2000"],["301","Medium Mahogany","#A03818"],
+  ["400","Dark Mahogany","#882808"],["402","Very Light Mahogany","#D09060"],
+  ["420","Dark Hazel Nut Brown","#886020"],["422","Light Hazel Nut Brown","#C09868"],
+  ["433","Medium Brown","#78380A"],["434","Light Brown","#9A5018"],
+  ["435","Very Light Brown","#B86828"],["436","Tan","#C88040"],
+  ["437","Light Tan","#D8A060"],["738","Very Light Tan","#E8C090"],
+  ["739","Ultra Very Light Tan","#F0D8B8"],["780","Ultra Very Dark Topaz","#724808"],
+  ["781","Very Dark Topaz","#905010"],["782","Dark Topaz","#A86020"],
+  ["783","Medium Topaz","#C08030"],["801","Dark Coffee Brown","#502808"],
+  ["869","Very Dark Hazel Nut Brown","#603808"],["898","Very Dark Coffee Brown","#401808"],
+  ["3031","Very Dark Mocha Brown","#4A3010"],["3032","Medium Mocha Brown","#908060"],
+  ["3033","Very Light Mocha Brown","#C8B898"],["3371","Black Brown","#200800"],
+  // Golds
+  ["676","Light Old Gold","#D0A848"],["677","Very Light Old Gold","#E8D090"],
+  ["680","Dark Old Gold","#B07810"],["729","Medium Old Gold","#C09018"],
+];
+function findClosestDMC(hex) {
+  const rgb = hexToRgb(hex);
+  let best = DMC_COLORS[0], bestD = Infinity;
+  for (const [num, name, dHex] of DMC_COLORS) {
+    const d = colorDistance(rgb, hexToRgb(dHex));
+    if (d < bestD) { bestD = d; best = [num, name, dHex]; }
+  }
+  return { number: best[0], name: best[1], hex: best[2] };
+}
+
+// ─── K-means quantization ─────────────────────────────────────────────────────
+function kMeansQuantize(pixels, k, iterations = 14) {
+  const step = Math.max(1, Math.floor(pixels.length / k));
+  let centroids = Array.from({ length: k }, (_, i) => [...pixels[(i * step) % pixels.length]]);
+  let assignments = new Array(pixels.length).fill(0);
+
+  for (let iter = 0; iter < iterations; iter++) {
+    for (let i = 0; i < pixels.length; i++) {
+      let best = 0, bestDist = Infinity;
+      for (let c = 0; c < centroids.length; c++) {
+        const d = colorDistance(pixels[i], centroids[c]);
+        if (d < bestDist) { bestDist = d; best = c; }
+      }
+      assignments[i] = best;
+    }
+    const sums = Array.from({ length: k }, () => [0, 0, 0, 0]);
+    for (let i = 0; i < pixels.length; i++) {
+      const c = assignments[i];
+      sums[c][0] += pixels[i][0]; sums[c][1] += pixels[i][1];
+      sums[c][2] += pixels[i][2]; sums[c][3]++;
+    }
+    centroids = sums.map((s, ci) => s[3] === 0 ? centroids[ci] : [s[0]/s[3], s[1]/s[3], s[2]/s[3]]);
+  }
+  return { centroids, assignments };
+}
+
+// ─── Smoothing (confetti removal) ─────────────────────────────────────────────
+function applySmoothing(grid, width, height, passes) {
+  let current = grid.slice();
+  for (let p = 0; p < passes; p++) {
+    const next = current.slice();
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = y * width + x;
+        const neighbors = [
+          current[(y-1)*width+x], current[(y+1)*width+x],
+          current[y*width+(x-1)], current[y*width+(x+1)],
+        ];
+        const freq = {};
+        neighbors.forEach(n => { freq[n] = (freq[n]||0) + 1; });
+        const [topKey, topCount] = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0];
+        if (topCount >= 3) next[idx] = parseInt(topKey);
+      }
+    }
+    current = next;
+  }
+  return current;
+}
+
+// ─── Agglomerative merge: reduce palette by merging closest pairs ─────────────
+// This ensures visually distinct colors (e.g. a lone red) are always preserved.
+function mergePaletteToCount(centroids, assignments, targetCount) {
+  // Work with mutable copies
+  let palette = centroids.map((c, i) => ({ id: i, rgb: [...c] }));
+  let grid = assignments.slice();
+
+  while (palette.length > targetCount) {
+    // Find the two closest palette entries
+    let bestDist = Infinity, mergeFrom = -1, mergeTo = -1;
+    for (let a = 0; a < palette.length; a++) {
+      for (let b = a + 1; b < palette.length; b++) {
+        const d = colorDistance(palette[a].rgb, palette[b].rgb);
+        if (d < bestDist) { bestDist = d; mergeFrom = a; mergeTo = b; }
+      }
+    }
+    // Merge `mergeFrom` into `mergeTo` — weighted average by pixel count
+    const countFrom = grid.filter(g => g === palette[mergeFrom].id).length;
+    const countTo   = grid.filter(g => g === palette[mergeTo].id).length;
+    const total = countFrom + countTo || 1;
+    const merged = [
+      (palette[mergeFrom].rgb[0] * countFrom + palette[mergeTo].rgb[0] * countTo) / total,
+      (palette[mergeFrom].rgb[1] * countFrom + palette[mergeTo].rgb[1] * countTo) / total,
+      (palette[mergeFrom].rgb[2] * countFrom + palette[mergeTo].rgb[2] * countTo) / total,
+    ];
+    const keepId = palette[mergeTo].id;
+    const dropId = palette[mergeFrom].id;
+    // Update grid: remap dropped id → kept id
+    grid = grid.map(c => c === dropId ? keepId : c);
+    // Update kept centroid to merged color, remove dropped
+    palette[mergeTo] = { id: keepId, rgb: merged };
+    palette.splice(mergeFrom, 1);
+  }
+
+  // Compact ids 0..n
+  const idRemap = {};
+  const finalPalette = palette.map((p, i) => { idRemap[p.id] = i; return { id: i, rgb: p.rgb, hex: rgbToHex(p.rgb[0], p.rgb[1], p.rgb[2]) }; });
+  const finalGrid = grid.map(c => idRemap[c] ?? 0);
+  return { palette: finalPalette, grid: finalGrid };
+}
+
+// ─── Core: image → pattern ────────────────────────────────────────────────────
+function imageToPattern(imageData, stitchHeight, colorCount, smoothing) {
+  const { width: imgW, height: imgH, data } = imageData;
+  const aspect = imgW / imgH;
+  const sw = Math.max(4, Math.round(stitchHeight * aspect));
+  const sh = Math.max(4, stitchHeight);
+
+  const pixels = [];
+  const transparentMask = []; // true = this stitch is transparent (background)
+  for (let sy = 0; sy < sh; sy++) {
+    for (let sx = 0; sx < sw; sx++) {
+      const px = Math.floor((sx / sw) * imgW);
+      const py = Math.floor((sy / sh) * imgH);
+      const i = (py * imgW + px) * 4;
+      const alpha = data[i+3];
+      transparentMask.push(alpha < 128);
+      pixels.push([data[i], data[i+1], data[i+2]]);
+    }
+  }
+
+  // Only quantize opaque pixels
+  const opaquePixels = pixels.filter((_, i) => !transparentMask[i]);
+  const initK = Math.min(Math.max(colorCount, 24), Math.max(opaquePixels.length, 1));
+  const { centroids, assignments: opaqueAssignments } = kMeansQuantize(
+    opaquePixels.length > 0 ? opaquePixels : pixels, initK, 14
+  );
+
+  // Rebuild full assignments — transparent pixels get id -1
+  let opaqueIdx = 0;
+  const fullAssignments = pixels.map((_, i) => {
+    if (transparentMask[i]) return -1;
+    return opaqueAssignments[opaqueIdx++];
+  });
+
+  // Merge closest pairs down to the requested count (opaque only)
+  const targetK = Math.min(colorCount, initK);
+  const { palette: mergedPalette, grid: mergedOpaque } = mergePaletteToCount(
+    centroids,
+    opaqueAssignments,
+    targetK
+  );
+
+  // Re-insert transparent slots back
+  opaqueIdx = 0;
+  const mergedGrid = fullAssignments.map(a => {
+    if (a === -1) return -1;
+    return mergedOpaque[opaqueIdx++];
+  });
+
+  // Apply smoothing (skip transparent cells)
+  const smoothed = smoothing > 0 ? applySmoothing(mergedGrid, sw, sh, smoothing) : mergedGrid.slice();
+
+  // Remove unused palette entries (ignore -1 transparent)
+  const usedIds = new Set(smoothed.filter(c => c !== -1));
+  const idRemap = {};
+  const palette = [];
+  mergedPalette.forEach(c => {
+    if (usedIds.has(c.id)) {
+      idRemap[c.id] = palette.length;
+      palette.push({ id: palette.length, hex: c.hex, rgb: c.rgb });
+    }
+  });
+
+  // -1 stays -1 (transparent/background)
+  const grid = smoothed.map(c => c === -1 ? -1 : (idRemap[c] ?? 0));
+  const hasTransparency = grid.some(c => c === -1);
+
+  return { grid, width: sw, height: sh, palette, hasTransparency };
+}
+
+// ─── Background removal: flood-fill from explicit seed points ────────────────
+// seedPoints: array of {x, y} in canvas pixel coords
+// Each seed independently samples its own color and floods outward from there.
+function removeBackground(canvas, tolerance, seedPoints) {
+  const ctx = canvas.getContext("2d");
+  const { width: w, height: h } = canvas;
+  const imgData = ctx.getImageData(0, 0, w, h);
+  const d = imgData.data;
+  const visited = new Uint8Array(w * h);
+  const queue = [];
+
+  for (const { x: sx, y: sy } of seedPoints) {
+    const cx = Math.max(0, Math.min(w-1, Math.round(sx)));
+    const cy = Math.max(0, Math.min(h-1, Math.round(sy)));
+    const si = (cy * w + cx) * 4;
+    const seedR = d[si], seedG = d[si+1], seedB = d[si+2];
+
+    // BFS from this seed — each seed uses its own sampled color
+    const seedQueue = [[cx, cy]];
+    while (seedQueue.length) {
+      const [x, y] = seedQueue.pop();
+      if (x < 0 || x >= w || y < 0 || y >= h) continue;
+      const idx = y * w + x;
+      if (visited[idx]) continue;
+      visited[idx] = 1;
+      const pi = idx * 4;
+      if (d[pi+3] === 0) continue; // already transparent
+      const dr = d[pi]-seedR, dg = d[pi+1]-seedG, db = d[pi+2]-seedB;
+      if (Math.sqrt(dr*dr+dg*dg+db*db) > tolerance) continue;
+      d[pi+3] = 0;
+      seedQueue.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+// Default seed points = four corners of the image
+function defaultSeedPoints(w, h) {
+  return [{ x:0,y:0 },{ x:w-1,y:0 },{ x:0,y:h-1 },{ x:w-1,y:h-1 }];
+}
+
+// ─── Crop Modal ───────────────────────────────────────────────────────────────
+function CropModal({ src, onDone, onCancel }) {
+  const canvasRef = useRef(null);
+  const imgRef = useRef(null);
+  const [drag, setDrag] = useState(null);
+  const [crop, setCrop] = useState(null);
+  const [imgSize, setImgSize] = useState({ w: 1, h: 1, offX: 0, offY: 0 });
+  const [removeBg, setRemoveBg] = useState(false);
+  const [bgTolerance, setBgTolerance] = useState(30);
+  const [seedPoints, setSeedPoints] = useState(null); // null = use corners
+  const previewRef = useRef(null);
+  const bgPreviewScale = useRef(1);
+
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      imgRef.current = img;
+      const maxW = 560, maxH = 400;
+      const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+      const w = img.width * scale, h = img.height * scale;
+      const offX = (maxW - w) / 2, offY = (maxH - h) / 2;
+      setImgSize({ w, h, offX, offY, scale });
+      setCrop({ x: offX, y: offY, w, h });
+    };
+    img.src = src;
+  }, [src]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !imgRef.current || !crop) return;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, 560, 400);
+    ctx.drawImage(imgRef.current, imgSize.offX, imgSize.offY, imgSize.w, imgSize.h);
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(0, 0, 560, 400);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(crop.x, crop.y, crop.w, crop.h);
+    ctx.clip();
+    ctx.drawImage(imgRef.current, imgSize.offX, imgSize.offY, imgSize.w, imgSize.h);
+    ctx.restore();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(crop.x, crop.y, crop.w, crop.h);
+    // Rule-of-thirds grid
+    ctx.strokeStyle = "rgba(255,255,255,0.3)";
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 3; i++) {
+      ctx.beginPath(); ctx.moveTo(crop.x + (crop.w/3)*i, crop.y); ctx.lineTo(crop.x + (crop.w/3)*i, crop.y+crop.h); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(crop.x, crop.y+(crop.h/3)*i); ctx.lineTo(crop.x+crop.w, crop.y+(crop.h/3)*i); ctx.stroke();
+    }
+    // Handles
+    [[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]].forEach(([fx,fy]) => {
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(crop.x+fx*crop.w, crop.y+fy*crop.h, 5, 0, Math.PI*2);
+      ctx.fill();
+    });
+  });
+
+  const getHandle = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const handles = [[0,0],[0.5,0],[1,0],[0,0.5],[1,0.5],[0,1],[0.5,1],[1,1]];
+    for (const [fx,fy] of handles) {
+      if (Math.hypot(mx-(crop.x+fx*crop.w), my-(crop.y+fy*crop.h)) < 10) return {fx,fy};
+    }
+    if (mx>crop.x && mx<crop.x+crop.w && my>crop.y && my<crop.y+crop.h) return "move";
+    return null;
+  };
+
+  const onMouseDown = (e) => {
+    const h = getHandle(e);
+    if (!h) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    setDrag({ handle:h, startX:e.clientX-rect.left, startY:e.clientY-rect.top, crop:{...crop} });
+  };
+
+  // Reset seeds when crop changes
+  const onMouseUp = () => { setDrag(null); setSeedPoints(null); };
+
+  const onMouseMove = (e) => {
+    if (!drag) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const dx = (e.clientX-rect.left)-drag.startX, dy = (e.clientY-rect.top)-drag.startY;
+    let { x, y, w, h } = drag.crop;
+    const minS = 30;
+    const { offX, offY, w:iw, h:ih } = imgSize;
+    if (drag.handle === "move") {
+      x = Math.max(offX, Math.min(offX+iw-w, x+dx));
+      y = Math.max(offY, Math.min(offY+ih-h, y+dy));
+    } else {
+      const {fx,fy} = drag.handle;
+      if (fx===1) w = Math.max(minS, w+dx);
+      if (fx===0) { const nw = Math.max(minS, w-dx); x += w-nw; w=nw; }
+      if (fy===1) h = Math.max(minS, h+dy);
+      if (fy===0) { const nh = Math.max(minS, h-dy); y += h-nh; h=nh; }
+    }
+    setCrop({ x, y, w:Math.round(w), h:Math.round(h) });
+  };
+
+  const getCroppedCanvas = useCallback(() => {
+    if (!imgRef.current || !crop) return null;
+    const cw = Math.round((crop.w / imgSize.w) * imgRef.current.width);
+    const ch = Math.round((crop.h / imgSize.h) * imgRef.current.height);
+    const offscreen = document.createElement("canvas");
+    offscreen.width = cw; offscreen.height = ch;
+    const ctx = offscreen.getContext("2d");
+    ctx.drawImage(imgRef.current,
+      ((crop.x - imgSize.offX) / imgSize.w) * imgRef.current.width,
+      ((crop.y - imgSize.offY) / imgSize.h) * imgRef.current.height,
+      cw, ch, 0, 0, cw, ch
+    );
+    if (removeBg) {
+      const seeds = seedPoints || defaultSeedPoints(cw, ch);
+      removeBackground(offscreen, bgTolerance, seeds);
+    }
+    return offscreen;
+  }, [crop, imgSize, removeBg, bgTolerance, seedPoints]);
+
+  // Live bg-removal preview
+  useEffect(() => {
+    const preview = previewRef.current;
+    if (!preview || !removeBg) return;
+    const c = getCroppedCanvas();
+    if (!c) return;
+    const maxW = 220, maxH = 130;
+    const scale = Math.min(maxW/c.width, maxH/c.height, 1);
+    bgPreviewScale.current = scale;
+    preview.width = Math.round(c.width*scale);
+    preview.height = Math.round(c.height*scale);
+    const ctx = preview.getContext("2d");
+    // Checkerboard
+    for (let y = 0; y < preview.height; y += 8) {
+      for (let x = 0; x < preview.width; x += 8) {
+        ctx.fillStyle = ((x/8 + y/8) % 2 === 0) ? "#bbb" : "#eee";
+        ctx.fillRect(x, y, 8, 8);
+      }
+    }
+    ctx.drawImage(c, 0, 0, preview.width, preview.height);
+    // Draw seed point markers
+    const seeds = seedPoints || defaultSeedPoints(c.width, c.height);
+    seeds.forEach(({ x, y }, i) => {
+      const px = x * scale, py = y * scale;
+      ctx.beginPath();
+      ctx.arc(px, py, 5, 0, Math.PI*2);
+      ctx.fillStyle = i === 0 && !seedPoints ? "rgba(99,102,241,0.5)" : "#ef4444";
+      ctx.fill();
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    });
+  }, [removeBg, bgTolerance, crop, seedPoints, getCroppedCanvas]);
+
+  const onConfirm = () => {
+    const c = getCroppedCanvas();
+    if (c) onDone(c);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl p-6" style={{ maxWidth: 600 }}>
+        <h2 className="text-lg font-bold mb-1 text-gray-800">Crop Your Image</h2>
+        <p className="text-sm text-gray-400 mb-4">Drag handles to select the area you want to stitch.</p>
+        <canvas
+          ref={canvasRef} width={560} height={400}
+          style={{ cursor:"crosshair", borderRadius:8, display:"block", border:"1px solid #e5e7eb" }}
+          onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp}
+        />
+
+        {/* Background removal controls */}
+        <div className="mt-4 p-3 rounded-xl bg-gray-50 border border-gray-200">
+          <div className="flex items-center gap-3 mb-2">
+            <button
+              onClick={() => { setRemoveBg(r => !r); setSeedPoints(null); }}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${
+                removeBg ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+              }`}>
+              {removeBg ? "✓ " : ""}Remove Background
+            </button>
+            {removeBg && (
+              <div className="flex items-center gap-2 flex-1">
+                <label className="text-xs text-gray-500 whitespace-nowrap">Tolerance</label>
+                <input type="range" min={5} max={120} value={bgTolerance} onChange={e => setBgTolerance(+e.target.value)}
+                  className="flex-1 accent-indigo-600 cursor-pointer" />
+                <span className="text-xs font-mono text-indigo-600 w-7 text-right">{bgTolerance}</span>
+              </div>
+            )}
+          </div>
+
+          {removeBg && (
+            <div className="flex gap-4 items-start">
+              <div className="flex-shrink-0">
+                <div className="text-xs text-gray-500 mb-1 font-medium">Click to add seed points</div>
+                <canvas
+                  ref={previewRef}
+                  style={{ borderRadius:6, border:"1px solid #e5e7eb", display:"block", cursor:"crosshair" }}
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const scale = bgPreviewScale.current || 1;
+                    // Get the actual crop dimensions to reverse-scale
+                    const c = getCroppedCanvas();
+                    if (!c) return;
+                    const px = (e.clientX - rect.left) / scale;
+                    const py = (e.clientY - rect.top) / scale;
+                    setSeedPoints(prev => {
+                      const current = prev || defaultSeedPoints(c.width, c.height);
+                      return [...current, { x: Math.round(px), y: Math.round(py) }];
+                    });
+                  }}
+                />
+              </div>
+              <div className="flex-1 space-y-1.5">
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  Red dots show where the fill starts. By default it seeds from the <strong>four corners</strong> and floods inward — only pixels connected to a seed point get removed.
+                </p>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  <strong>Click the preview</strong> to add extra seed points if the background has disconnected regions.
+                </p>
+                {seedPoints && seedPoints.length > 0 && (
+                  <button onClick={() => setSeedPoints(null)}
+                    className="text-xs text-indigo-500 hover:text-indigo-700 underline">
+                    Reset to corner seeds
+                  </button>
+                )}
+                <p className="text-xs text-gray-400 mt-1">Transparent areas show the belt canvas color when placed.</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3 mt-4 justify-end">
+          <button onClick={onCancel} className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 text-sm">Cancel</button>
+          <button onClick={onConfirm} className="px-5 py-2 rounded-lg bg-indigo-600 text-white font-semibold text-sm hover:bg-indigo-700">Use This Crop ✓</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Zoom Preview ────────────────────────────────────────────────────────────
+// Renders the pattern at multiple simulated viewing distances
+function ZoomPreview({ grid, width, height, palette, canvasBg = "#D4C5A9" }) {
+  const scales = [
+    { label: "Actual size (~18 mesh)", px: 1.41 },
+    { label: "Arm's length (~50cm)",   px: 3 },
+    { label: "Close-up (~25cm)",       px: 6 },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <p className="text-xs text-gray-400">How your pattern will look at different viewing distances. No grid lines shown.</p>
+      {scales.map(({ label, px }) => (
+        <ZoomCanvas key={label} label={label} px={px} grid={grid} width={width} height={height} palette={palette} canvasBg={canvasBg} />
+      ))}
+    </div>
+  );
+}
+
+function ZoomCanvas({ label, px, grid, width, height, palette, canvasBg = "#D4C5A9" }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const cw = Math.round(width * px);
+    const ch = Math.round(height * px);
+    canvas.width = cw;
+    canvas.height = ch;
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
+    const offscreen = document.createElement("canvas");
+    offscreen.width = width;
+    offscreen.height = height;
+    const octx = offscreen.getContext("2d");
+    octx.fillStyle = canvasBg;
+    octx.fillRect(0, 0, width, height);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const ci = grid[y * width + x];
+        if (ci === -1) continue;
+        octx.fillStyle = palette[ci]?.hex || canvasBg;
+        octx.fillRect(x, y, 1, 1);
+      }
+    }
+    ctx.drawImage(offscreen, 0, 0, cw, ch);
+  }, [grid, width, height, palette, px, canvasBg]);
+
+  return (
+    <div>
+      <div className="text-xs font-medium text-gray-500 mb-1.5">{label}</div>
+      <div className="bg-gray-100 rounded-lg p-3 inline-block">
+        <canvas
+          ref={canvasRef}
+          style={{ imageRendering: "pixelated", display: "block", borderRadius: 2 }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Pattern Canvas ───────────────────────────────────────────────────────────
+function PatternCanvas({ grid, width, height, palette, selectedColor, onCellPaint, onPaintEnd, onColorPick, stitchSelectMode = false, selectedCells, onCellSelect, zoom = 1, canvasBg = "#D4C5A9", cropMode = false, cropBounds, onCropBoundsChange }) {
+  const canvasRef = useRef(null);
+  const overlayRef = useRef(null);
+  const isDrawing = useRef(false);
+  const isDraggingRect = useRef(false);
+  const dragStart = useRef(null);
+  const dragCurrent = useRef(null);
+  const dragStartIsBlank = useRef(false);
+  const dragStartColor = useRef(-1); // exact color index of the cell where drag started
+  const cropHandleDrag = useRef(null); // { handle, startPx, startPy, startBounds }
+  const docCropListeners = useRef(null);
+  const CELL = Math.max(3, Math.min(24, Math.floor(Math.min(900/width, 700/height)))) * zoom;
+  const HANDLE_R = Math.max(4, Math.min(7, CELL * 0.45));
+  const HANDLE_HIT = HANDLE_R + 7;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const cw = width * CELL, ch = height * CELL;
+    canvas.width = cw; canvas.height = ch;
+    if (overlayRef.current) { overlayRef.current.width = cw; overlayRef.current.height = ch; }
+    const ctx = canvas.getContext("2d");
+    const r = Math.max(1, (CELL - 2) / 2);
+    ctx.fillStyle = canvasBg;
+    ctx.fillRect(0, 0, cw, ch);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const ci = grid[y * width + x];
+        const idx = y * width + x;
+        if (ci === -1) {
+          ctx.globalAlpha = 1;
+          if (stitchSelectMode && selectedCells?.has(idx)) {
+            ctx.fillStyle = "rgba(99,102,241,0.2)";
+            ctx.fillRect(x*CELL, y*CELL, CELL, CELL);
+            ctx.strokeStyle = "rgba(99,102,241,0.7)";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x*CELL + 0.5, y*CELL + 0.5, CELL - 1, CELL - 1);
+          } else {
+            // blank cell — canvasBg already painted as base, nothing to draw
+          }
+        } else {
+          const alpha = (!stitchSelectMode && selectedColor !== null && ci !== selectedColor) ? 0.2 : 1;
+          const hex = palette[ci]?.hex || "#ccc";
+          // Fill full cell so no background bleeds through corners
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = hex;
+          ctx.fillRect(x*CELL, y*CELL, CELL, CELL);
+          // Draw arc for stitch-painted look — slightly inset
+          ctx.beginPath();
+          ctx.arc(x*CELL + CELL/2, y*CELL + CELL/2, r, 0, Math.PI * 2);
+          ctx.fill();
+          if (stitchSelectMode && selectedCells?.has(idx)) {
+            ctx.globalAlpha = 1;
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = Math.max(1, CELL * 0.15);
+            ctx.beginPath();
+            ctx.arc(x*CELL + CELL/2, y*CELL + CELL/2, r + 1.5, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+  }, [grid, width, height, palette, CELL, selectedColor, stitchSelectMode, selectedCells, canvasBg]);
+
+  useEffect(() => {
+    if (cropMode && cropBounds) drawCropOverlay();
+    else if (!cropMode) {
+      const overlay = overlayRef.current;
+      if (overlay) overlay.getContext("2d").clearRect(0, 0, overlay.width, overlay.height);
+    }
+  }, [cropMode, cropBounds, CELL]);
+
+  const drawOverlay = () => {
+    const overlay = overlayRef.current;
+    if (!overlay || !dragStart.current || !dragCurrent.current) return;
+    const ctx = overlay.getContext("2d");
+    ctx.clearRect(0, 0, overlay.width, overlay.height);
+    const x1 = Math.min(dragStart.current.px, dragCurrent.current.px);
+    const y1 = Math.min(dragStart.current.py, dragCurrent.current.py);
+    const rw = Math.abs(dragCurrent.current.px - dragStart.current.px);
+    const rh = Math.abs(dragCurrent.current.py - dragStart.current.py);
+    ctx.fillStyle = "rgba(99,102,241,0.08)";
+    ctx.fillRect(x1, y1, rw, rh);
+    ctx.strokeStyle = "rgba(99,102,241,0.7)";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.strokeRect(x1, y1, rw, rh);
+    ctx.setLineDash([]);
+  };
+
+  const drawCropOverlay = (bounds) => {
+    const b = bounds || cropBounds;
+    const overlay = overlayRef.current;
+    if (!overlay || !b) return;
+    const ctx = overlay.getContext("2d");
+    const cw = overlay.width, ch = overlay.height;
+    ctx.clearRect(0, 0, cw, ch);
+    const lx = b.x1 * CELL;
+    const ty = b.y1 * CELL;
+    const rx = (b.x2 + 1) * CELL;
+    const by = (b.y2 + 1) * CELL;
+    // Shade outside the crop rect (clamped to canvas)
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    const clx = Math.max(0, lx), cty = Math.max(0, ty);
+    const crx = Math.min(cw, rx), cby = Math.min(ch, by);
+    ctx.fillRect(0, 0, cw, cty);
+    ctx.fillRect(0, cty, clx, cby - cty);
+    ctx.fillRect(crx, cty, cw - crx, cby - cty);
+    ctx.fillRect(0, cby, cw, ch - cby);
+    // Border (clamped)
+    ctx.strokeStyle = "rgba(16,185,129,1)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([]);
+    ctx.strokeRect(clx, cty, crx - clx, cby - cty);
+    // Dimension label
+    const newW = b.x2 - b.x1 + 1, newH = b.y2 - b.y1 + 1;
+    const label = `${newW} × ${newH}`;
+    ctx.font = `bold ${Math.max(10, CELL)}px sans-serif`;
+    ctx.fillStyle = "rgba(16,185,129,1)";
+    ctx.textAlign = "center";
+    const labelY = cty > 18 ? cty - 6 : cby + Math.max(10, CELL) + 4;
+    ctx.fillText(label, (clx + crx) / 2, labelY);
+    // Handles at corners and edge midpoints
+    const mx = (clx + crx) / 2, my = (cty + cby) / 2;
+    const hpts = [[clx,cty],[mx,cty],[crx,cty],[clx,my],[crx,my],[clx,cby],[mx,cby],[crx,cby]];
+    for (const [hx, hy] of hpts) {
+      ctx.beginPath();
+      ctx.arc(hx, hy, HANDLE_R, 0, Math.PI * 2);
+      ctx.fillStyle = "white";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(16,185,129,1)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  };
+
+  // Handle names match CSS cursor directions: nw n ne w e sw s se
+  const getHitHandle = (px, py) => {
+    if (!cropBounds) return null;
+    const overlay = overlayRef.current;
+    if (!overlay) return null;
+    const cw = overlay.width, ch = overlay.height;
+    const lx = Math.max(0, cropBounds.x1 * CELL);
+    const ty = Math.max(0, cropBounds.y1 * CELL);
+    const rx = Math.min(cw, (cropBounds.x2 + 1) * CELL);
+    const by = Math.min(ch, (cropBounds.y2 + 1) * CELL);
+    const mx = (lx + rx) / 2, my = (ty + by) / 2;
+    const pts = { nw:[lx,ty], n:[mx,ty], ne:[rx,ty], w:[lx,my], e:[rx,my], sw:[lx,by], s:[mx,by], se:[rx,by] };
+    for (const [name, [hx, hy]] of Object.entries(pts)) {
+      if (Math.hypot(px - hx, py - hy) <= HANDLE_HIT) return name;
+    }
+    return null;
+  };
+
+  const CROP_CURSORS = { nw:'nw-resize', n:'n-resize', ne:'ne-resize', w:'w-resize', e:'e-resize', sw:'sw-resize', s:'s-resize', se:'se-resize' };
+
+  const getCellFromEvent = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    return {
+      x: Math.floor((e.clientX - rect.left) / CELL),
+      y: Math.floor((e.clientY - rect.top) / CELL),
+      px: e.clientX - rect.left,
+      py: e.clientY - rect.top,
+    };
+  };
+
+  const handlePaint = (e) => {
+    if (selectedColor === null || !onCellPaint) return;
+    const { x, y } = getCellFromEvent(e);
+    if (x >= 0 && x < width && y >= 0 && y < height) onCellPaint(y * width + x, selectedColor);
+  };
+
+  const handleMouseDown = (e) => {
+    const { x, y, px, py } = getCellFromEvent(e);
+    if (cropMode) {
+      const handle = getHitHandle(px, py);
+      if (handle && cropBounds) {
+        cropHandleDrag.current = { handle, startPx: px, startPy: py, startBounds: { ...cropBounds } };
+        isDrawing.current = true;
+        attachDocCropListeners();
+      }
+      return;
+    }
+    isDrawing.current = true;
+    dragStart.current = { x, y, px, py };
+    dragCurrent.current = { x, y, px, py };
+    if (x >= 0 && x < width && y >= 0 && y < height) {
+      if (stitchSelectMode) {
+        dragStartIsBlank.current = grid[y * width + x] === -1;
+        dragStartColor.current = grid[y * width + x];
+        onCellSelect?.(y * width + x);
+      } else {
+        const ci = grid[y * width + x];
+        if (ci !== -1 && onColorPick) onColorPick(ci);
+      }
+    }
+  };
+
+  const applyCropDrag = (px, py) => {
+    if (!cropHandleDrag.current) return;
+    const { handle, startPx, startPy, startBounds } = cropHandleDrag.current;
+    const dx = Math.round((px - startPx) / CELL);
+    const dy = Math.round((py - startPy) / CELL);
+    let { x1, y1, x2, y2 } = startBounds;
+    if (handle === 'w'  || handle === 'nw' || handle === 'sw') x1 = Math.min(x1 + dx, x2 - 1);
+    if (handle === 'e'  || handle === 'ne' || handle === 'se') x2 = Math.max(x2 + dx, x1 + 1);
+    if (handle === 'n'  || handle === 'nw' || handle === 'ne') y1 = Math.min(y1 + dy, y2 - 1);
+    if (handle === 's'  || handle === 'sw' || handle === 'se') y2 = Math.max(y2 + dy, y1 + 1);
+    onCropBoundsChange?.({ x1, y1, x2, y2 });
+    drawCropOverlay({ x1, y1, x2, y2 });
+  };
+
+  const attachDocCropListeners = () => {
+    const onDocMove = (e) => {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      applyCropDrag(e.clientX - rect.left, e.clientY - rect.top);
+    };
+    const onDocUp = () => {
+      cropHandleDrag.current = null;
+      isDrawing.current = false;
+      document.removeEventListener('mousemove', onDocMove);
+      document.removeEventListener('mouseup', onDocUp);
+      docCropListeners.current = null;
+    };
+    docCropListeners.current = { onDocMove, onDocUp };
+    document.addEventListener('mousemove', onDocMove);
+    document.addEventListener('mouseup', onDocUp);
+  };
+
+  const handleMouseMove = (e) => {
+    const { x, y, px, py } = getCellFromEvent(e);
+    if (cropMode) {
+      if (cropHandleDrag.current) {
+        applyCropDrag(px, py);
+      } else {
+        // Just hovering — update cursor
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const h = getHitHandle(px, py);
+          canvas.style.cursor = h ? CROP_CURSORS[h] : 'default';
+        }
+      }
+      return;
+    }
+    if (!isDrawing.current) return;
+    if (stitchSelectMode) {
+      if (!isDraggingRect.current && dragStart.current) {
+        if (Math.hypot(px - dragStart.current.px, py - dragStart.current.py) > CELL)
+          isDraggingRect.current = true;
+      }
+      if (isDraggingRect.current) {
+        dragCurrent.current = { x, y, px, py };
+        drawOverlay();
+      } else if (x >= 0 && x < width && y >= 0 && y < height) {
+        const cellColor = grid[y * width + x];
+        const cellIsBlank = cellColor === -1;
+        if (cellIsBlank === dragStartIsBlank.current &&
+            (dragStartIsBlank.current || cellColor === dragStartColor.current))
+          onCellSelect?.(y * width + x);
+      }
+      return;
+    }
+    handlePaint(e);
+  };
+
+  const handleMouseUp = () => {
+    if (cropMode) {
+      cropHandleDrag.current = null;
+      isDrawing.current = false;
+      return;
+    }
+    if (isDraggingRect.current && dragStart.current && dragCurrent.current) {
+      const x1 = Math.min(dragStart.current.x, dragCurrent.current.x);
+      const y1 = Math.min(dragStart.current.y, dragCurrent.current.y);
+      const x2 = Math.max(dragStart.current.x, dragCurrent.current.x);
+      const y2 = Math.max(dragStart.current.y, dragCurrent.current.y);
+      const indices = [];
+      for (let cy = Math.max(0, y1); cy <= Math.min(height - 1, y2); cy++) {
+        for (let cx = Math.max(0, x1); cx <= Math.min(width - 1, x2); cx++) {
+          const cellColor = grid[cy * width + cx];
+          const isBlank = cellColor === -1;
+          if (isBlank === dragStartIsBlank.current &&
+              (dragStartIsBlank.current || cellColor === dragStartColor.current))
+            indices.push(cy * width + cx);
+        }
+      }
+      if (indices.length > 0) onCellSelect?.(indices);
+      isDraggingRect.current = false;
+      dragStart.current = null;
+      dragCurrent.current = null;
+      const overlay = overlayRef.current;
+      if (overlay) overlay.getContext("2d").clearRect(0, 0, overlay.width, overlay.height);
+    }
+    isDrawing.current = false;
+    onPaintEnd?.();
+  };
+
+  return (
+    <div style={{ position: "relative", display: "inline-block" }}>
+      <canvas ref={canvasRef}
+        style={{ cursor: cropMode ? "default" : "crosshair", borderRadius:4, border:"1px solid #e5e7eb", display:"block", background: canvasBg }}
+        onMouseDown={handleMouseDown} onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp} onMouseLeave={() => { if (!cropHandleDrag.current) handleMouseUp(); }}
+      />
+      <canvas ref={overlayRef} style={{ position:"absolute", top:0, left:0, pointerEvents:"none", borderRadius:4 }} />
+    </div>
+  );
+}
+
+// ─── Color Swatch ─────────────────────────────────────────────────────────────
+function ColorSwatch({ color, count, total, isSelected, onSelect, onMerge, onDelete, onDeleteTransparent, onSwap, palette }) {
+  const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const [swapHex, setSwapHex] = useState(color.hex);
+  const swapDebounce = useRef(null);
+  const ref = useRef(null);
+  const btnRef = useRef(null);
+
+  useEffect(() => { setSwapHex(color.hex); }, [color.hex]);
+  useEffect(() => { setOpen(false); }, [color.id]);
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target) &&
+          btnRef.current && !btnRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const openMenu = (e) => {
+    e.stopPropagation();
+    const rect = btnRef.current.getBoundingClientRect();
+    setMenuPos({ top: rect.bottom + 6, left: Math.max(8, rect.right - 208) });
+    setOpen(o => !o);
+  };
+
+  const dmc = findClosestDMC(color.hex);
+  const pct = total > 0 ? Math.round(count / total * 100) : 0;
+
+  return (
+    <div onClick={() => onSelect(isSelected ? null : color.id)}
+      style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", cursor:"pointer", transition:"background 120ms", borderBottom:"1px solid #f0f0ee", background: isSelected ? "#f5f4ff" : "transparent", boxShadow: isSelected ? "inset 2px 0 0 #4f46e5" : "none" }}
+      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background="#fafaf9"; }}
+      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background="transparent"; }}>
+      {/* Swatch */}
+      <div style={{ width:32, height:32, borderRadius:7, flexShrink:0, background:swapHex, border:"1px solid rgba(0,0,0,0.08)", boxShadow:"0 1px 3px rgba(0,0,0,0.1)" }} />
+      {/* Info */}
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ fontSize:13, fontWeight:600, color:"#1a1a18", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>DMC {dmc.number}</div>
+        <div style={{ fontSize:11, color:"#a0a09d", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{dmc.name}</div>
+        <div style={{ height:3, background:"#f0f0ee", borderRadius:2, marginTop:4, overflow:"hidden" }}>
+          <div style={{ height:"100%", borderRadius:2, width:`${pct}%`, background: isSelected ? "#4f46e5" : "#d4d4d2", transition:"width 300ms" }} />
+        </div>
+      </div>
+      {/* Stats */}
+      <div style={{ textAlign:"right", flexShrink:0 }}>
+        <div style={{ fontSize:12, fontWeight:600, color:"#6b6b68" }}>{pct}%</div>
+        <div style={{ fontSize:10, color:"#a0a09d" }}>{count.toLocaleString()}</div>
+      </div>
+      {/* Menu button */}
+      <button ref={btnRef} onClick={openMenu}
+        style={{ background:"transparent", border:"none", cursor:"pointer", padding:"4px 6px", borderRadius:5, color: open ? "#1a1a18" : "#c0c0bc", flexShrink:0, transition:"color 120ms, background 120ms" }}
+        onMouseEnter={e => { e.currentTarget.style.background="#f4f4f3"; e.currentTarget.style.color="#1a1a18"; }}
+        onMouseLeave={e => { e.currentTarget.style.background="transparent"; e.currentTarget.style.color= open ? "#1a1a18" : "#c0c0bc"; }}>
+        <Icon name="moreHoriz" size={14} />
+      </button>
+
+      {/* Dropdown — fixed position to escape any overflow:hidden parent */}
+      {open && (
+        <div ref={ref}
+          style={{ position:"fixed", top:menuPos.top, left:menuPos.left, zIndex:9999, background:"white", border:"1px solid #e5e5e3", borderRadius:12, boxShadow:"0 8px 32px rgba(0,0,0,0.12)", padding:"12px", width:208 }}
+          onClick={e => e.stopPropagation()}>
+          <div style={{ fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.07em", color:"#a0a09d", marginBottom:10 }}>Edit Color</div>
+
+          <div style={{ marginBottom:12 }}>
+            <div style={{ fontSize:11, color:"#a0a09d", marginBottom:6 }}>Change color</div>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <input type="color" value={swapHex}
+                onChange={e => {
+                  const hex = e.target.value;
+                  setSwapHex(hex);
+                  clearTimeout(swapDebounce.current);
+                  swapDebounce.current = setTimeout(() => onSwap(color.id, hex), 300);
+                }}
+                style={{ width:32, height:28, borderRadius:6, border:"1px solid #e5e5e3", cursor:"pointer", padding:2 }} />
+              <span style={{ fontSize:11, fontFamily:"monospace", color:"#6b6b68" }}>{swapHex.toUpperCase()}</span>
+            </div>
+          </div>
+
+          {palette.filter(p => p.id !== color.id).length > 0 && (
+            <div style={{ marginBottom:12 }}>
+              <div style={{ fontSize:11, color:"#a0a09d", marginBottom:6 }}>Merge into</div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                {palette.filter(p => p.id !== color.id).map(p => (
+                  <button key={p.id} onClick={() => { onMerge(color.id, p.id); setOpen(false); }}
+                    style={{ width:24, height:24, borderRadius:5, background:p.hex, border:"2px solid white", boxShadow:"0 0 0 1px rgba(0,0,0,0.1)", cursor:"pointer", transition:"transform 120ms" }}
+                    onMouseEnter={e => e.currentTarget.style.transform="scale(1.2)"}
+                    onMouseLeave={e => e.currentTarget.style.transform="scale(1)"}
+                    title={`Merge into DMC ${findClosestDMC(p.hex).number}`} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ height:1, background:"#f0f0ee", margin:"8px 0" }} />
+
+          <button onClick={() => { onDelete(color.id); setOpen(false); }}
+            style={{ display:"flex", alignItems:"center", gap:6, width:"100%", background:"transparent", border:"none", cursor:"pointer", padding:"6px 4px", borderRadius:5, fontSize:12, color:"#ef4444", transition:"background 120ms" }}
+            onMouseEnter={e => e.currentTarget.style.background="#fef2f2"}
+            onMouseLeave={e => e.currentTarget.style.background="transparent"}>
+            <Icon name="trash2" size={12} /> Remove color
+          </button>
+          <button onClick={() => { onDeleteTransparent(color.id); setOpen(false); }}
+            style={{ display:"flex", alignItems:"center", gap:6, width:"100%", background:"transparent", border:"none", cursor:"pointer", padding:"6px 4px", borderRadius:5, fontSize:12, color:"#ef4444", transition:"background 120ms" }}
+            onMouseEnter={e => e.currentTarget.style.background="#fef2f2"}
+            onMouseLeave={e => e.currentTarget.style.background="transparent"}>
+            <Icon name="x" size={12} /> Delete stitches only
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Belt Preview ────────────────────────────────────────────────────────────
+function BeltPreview({ slots, bg, spacing, beltLength, compact = false }) {
+  const canvasRef = useRef(null);
+
+  // Belt height = tallest icon + 2 border rows top + 2 border rows bottom
+  const BORDER = 2;
+  const tallest = slots.reduce((m, s) => Math.max(m, s.pattern?.height || 0), 0);
+  const BELT_H = Math.max(tallest + BORDER * 2, 8);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // Build belt color grid
+    const beltGrid = new Array(BELT_H * beltLength).fill(null);
+    let cursor = spacing;
+    for (const slot of slots) {
+      const { pattern } = slot;
+      if (!pattern) continue;
+      const iw = pattern.width, ih = pattern.height;
+      // Center icon vertically; for equal top/bottom border use exact BORDER offset
+      const yOffset = Math.floor((BELT_H - ih) / 2);
+      for (let y = 0; y < ih; y++) {
+        for (let x = 0; x < iw; x++) {
+          const bx = cursor + x, by = yOffset + y;
+          if (bx >= beltLength || by < 0 || by >= BELT_H) continue;
+          const ci = pattern.grid[y * iw + x];
+          if (ci === -1) continue;
+          beltGrid[by * beltLength + bx] = pattern.palette[ci]?.hex || bg;
+        }
+      }
+      cursor += iw + spacing;
+    }
+
+    const CELL = compact ? 4 : 9;
+    canvas.width  = beltLength * CELL;
+    canvas.height = BELT_H    * CELL;
+    const ctx = canvas.getContext("2d");
+
+    // ── Background fill ──
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // ── Canvas mesh grid (subtle) ──
+    ctx.strokeStyle = "rgba(0,0,0,0.13)";
+    ctx.lineWidth = 0.5;
+    for (let gx = 0; gx <= beltLength; gx++) {
+      ctx.beginPath(); ctx.moveTo(gx * CELL + 0.5, 0); ctx.lineTo(gx * CELL + 0.5, canvas.height); ctx.stroke();
+    }
+    for (let gy = 0; gy <= BELT_H; gy++) {
+      ctx.beginPath(); ctx.moveTo(0, gy * CELL + 0.5); ctx.lineTo(canvas.width, gy * CELL + 0.5); ctx.stroke();
+    }
+
+    // ── Cross-stitches ──
+    // Each stitch: solid fill first, then X strokes on top for thread texture
+    const pad      = Math.max(1, CELL * 0.1);
+    const threadW  = Math.max(1, CELL * 0.22);
+    ctx.lineCap = "round";
+
+    for (let sy = 0; sy < BELT_H; sy++) {
+      for (let sx = 0; sx < beltLength; sx++) {
+        const color = beltGrid[sy * beltLength + sx];
+        if (!color) continue;
+
+        const [cr, cg, cb] = hexToRgb(color);
+
+        // 1. Fill the cell with the base thread color (slightly deepened for body)
+        const fillColor = `rgb(${Math.max(0,cr-18)},${Math.max(0,cg-18)},${Math.max(0,cb-18)})`;
+        ctx.fillStyle = fillColor;
+        ctx.fillRect(sx * CELL + 1, sy * CELL + 1, CELL - 1, CELL - 1);
+
+        if (compact) continue; // skip X strokes in thumbnail mode — too small to matter
+
+        // 2. Stitch coordinates with padding
+        const x0 = sx * CELL + pad + 1;
+        const y0 = sy * CELL + pad + 1;
+        const x1 = (sx + 1) * CELL - pad;
+        const y1 = (sy + 1) * CELL - pad;
+
+        const shadow = `rgb(${Math.max(0,cr-55)},${Math.max(0,cg-55)},${Math.max(0,cb-55)})`;
+
+        // Back stitch: / (bottom-left → top-right), darker for depth
+        ctx.lineWidth  = threadW;
+        ctx.strokeStyle = shadow;
+        ctx.beginPath(); ctx.moveTo(x0, y1); ctx.lineTo(x1, y0); ctx.stroke();
+
+        // Front stitch: \ (top-left → bottom-right), full thread color on top
+        ctx.strokeStyle = color;
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+      }
+    }
+  }, [slots, bg, spacing, beltLength, compact, BELT_H]);
+
+  return (
+    <div style={{ overflowX:"auto" }}>
+      {slots.length === 0 ? (
+        <div style={{ height: compact ? 44 : BELT_H * 9, background: bg, border:"2px dashed rgba(255,255,255,0.15)", borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <span style={{ fontSize:11, fontWeight:500, background:"rgba(0,0,0,0.35)", color:"rgba(255,255,255,0.85)", padding:"3px 10px", borderRadius:20 }}>
+            {compact ? "Empty belt" : `${beltLength} stitches wide · add icons to fill`}
+          </span>
+        </div>
+      ) : (
+        <canvas ref={canvasRef} style={{ display:"block", borderRadius:4 }} />
+      )}
+    </div>
+  );
+}
+
+// ─── Main App ─────────────────────────────────────────────────────────────────
+function NeedlepointApp() {
+  const [rawSrc, setRawSrc] = useState(null);
+  const [croppedCanvas, setCroppedCanvas] = useState(null);
+  const [showCrop, setShowCrop] = useState(false);
+  const fileRef = useRef(null);
+
+  // Belt height presets (18-mesh needlepoint belt standard)
+  const BELT_PRESETS = [
+    { rows: 15, label: "Petite", sub: "15 rows · compact icon" },
+    { rows: 18, label: "Standard", sub: "18 rows · recommended" },
+    { rows: 19, label: "Full", sub: "19 rows · bold design" },
+    { rows: 21, label: "Max", sub: "21 rows · edge-to-edge" },
+  ];
+  const [stitchHeight, setStitchHeight] = useState(18);
+  const [colorCount, setColorCount] = useState(10);
+  const [smoothing, setSmoothing] = useState(2);
+  const [canvasBg, setCanvasBg] = useState("#D4C5A9");
+  const CANVAS_BG_PRESETS = [
+    { hex: "#D4C5A9", label: "Natural linen" },
+    { hex: "#F0EAD6", label: "Ivory" },
+    { hex: "#FFFFFF", label: "White" },
+    { hex: "#E8C89A", label: "Congress cloth" },
+    { hex: "#1a3a6b", label: "Navy" },
+    { hex: "#2a5c35", label: "Forest" },
+    { hex: "#7a1c35", label: "Burgundy" },
+    { hex: "#1a1a1a", label: "Black" },
+  ];
+
+  const [pattern, setPattern] = useState(null);
+  const [generating, setGenerating] = useState(false);
+  const [selectedColor, setSelectedColor] = useState(null);
+  const [stitchSelectMode, setStitchSelectMode] = useState(false);
+  const [selectedCells, setSelectedCells] = useState(new Set());
+  const [cropMode, setCropMode] = useState(false);
+  const [cropBounds, setCropBounds] = useState(null);
+  const [showAddRow, setShowAddRow] = useState(false);
+  const [zoomOut, setZoomOut] = useState(false);
+
+  const [library, setLibrary] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('sc_library') || '[]'); } catch { return []; }
+  });
+  const [saveName, setSaveName] = useState("");
+  const [tab, setTab] = useState("create");
+
+  // ── Belt designer state ──
+  const [beltSlots, setBeltSlots] = useState([]); // [{id, pattern, thumb}]
+  const [beltBg, setBeltBg] = useState(() => localStorage.getItem('sc_beltBg') || "#1a1a2e");
+  const [beltSpacing, setBeltSpacing] = useState(() => parseInt(localStorage.getItem('sc_beltSpacing') || '4'));
+  const [beltLength, setBeltLength] = useState(() => parseInt(localStorage.getItem('sc_beltLength') || '240'));
+  const [dragOverSlot, setDragOverSlot] = useState(null);
+  const [savedBelts, setSavedBelts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('sc_belts') || '[]'); } catch { return []; }
+  });
+  const [beltName, setBeltName] = useState("");
+  const [editingBeltId, setEditingBeltId] = useState(null);
+  const beltDesignerRef = useRef(null);
+
+  const debounceRef = useRef(null);
+
+  // ── localStorage sync ──
+  useEffect(() => { try { localStorage.setItem('sc_library', JSON.stringify(library)); } catch(e) { console.warn('Storage full', e); } }, [library]);
+  useEffect(() => { try { localStorage.setItem('sc_belts', JSON.stringify(savedBelts)); } catch(e) { console.warn('Storage full', e); } }, [savedBelts]);
+  useEffect(() => { localStorage.setItem('sc_beltBg', beltBg); }, [beltBg]);
+  useEffect(() => { localStorage.setItem('sc_beltSpacing', String(beltSpacing)); }, [beltSpacing]);
+  useEffect(() => { localStorage.setItem('sc_beltLength', String(beltLength)); }, [beltLength]);
+
+  // ── Undo / Redo ──
+  const undoStack = useRef([]);
+  const redoStack = useRef([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const pushUndo = (p) => {
+    if (!p) return;
+    undoStack.current = [...undoStack.current.slice(-19), JSON.parse(JSON.stringify(p))];
+    redoStack.current = [];
+    setCanUndo(true); setCanRedo(false);
+  };
+  const undo = () => {
+    if (!undoStack.current.length) return;
+    redoStack.current = [...redoStack.current, JSON.parse(JSON.stringify(pattern))];
+    const prev = undoStack.current[undoStack.current.length - 1];
+    undoStack.current = undoStack.current.slice(0, -1);
+    setPattern(prev); setSelectedColor(null);
+    setCanUndo(undoStack.current.length > 0); setCanRedo(true);
+  };
+  const redo = () => {
+    if (!redoStack.current.length) return;
+    undoStack.current = [...undoStack.current, JSON.parse(JSON.stringify(pattern))];
+    const next = redoStack.current[redoStack.current.length - 1];
+    redoStack.current = redoStack.current.slice(0, -1);
+    setPattern(next); setSelectedColor(null);
+    setCanUndo(true); setCanRedo(redoStack.current.length > 0);
+  };
+  // Stable refs so keyboard handler doesn't need to re-register
+  const undoRef = useRef(null); undoRef.current = undo;
+  const redoRef = useRef(null); redoRef.current = redo;
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undoRef.current(); }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redoRef.current(); }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
+
+  // ── Zoom ──
+  const [patternZoom, setPatternZoom] = useState(1);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef(null);
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const handler = (e) => { if (exportMenuRef.current && !exportMenuRef.current.contains(e.target)) setExportMenuOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [exportMenuOpen]);
+  const isPaintingRef = useRef(false);
+
+  // ── Generate ──
+  const generate = useCallback((canvas, sh, cc, sm) => {
+    const src = canvas || croppedCanvas;
+    if (!src) return;
+    setGenerating(true);
+    setTimeout(() => {
+      try {
+        const ctx = src.getContext("2d");
+        const imgData = ctx.getImageData(0, 0, src.width, src.height);
+        const result = imageToPattern(imgData, sh ?? stitchHeight, cc ?? colorCount, sm ?? smoothing);
+        setPattern(result);
+        setSelectedColor(null);
+      } catch(e) {
+        console.error("Pattern generation failed:", e);
+      }
+      setGenerating(false);
+    }, 30);
+  }, [croppedCanvas, stitchHeight, colorCount, smoothing]);
+
+  // ── Auto-regenerate on slider change ──
+  const scheduleRegenerate = useCallback((sh, cc, sm) => {
+    if (!croppedCanvas) return;
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      generate(croppedCanvas, sh, cc, sm);
+    }, 400);
+  }, [croppedCanvas, generate]);
+
+  const handleStitchHeight = (v) => { setStitchHeight(v); scheduleRegenerate(v, colorCount, smoothing); };
+  const handleColorCount  = (v) => { setColorCount(v);  scheduleRegenerate(stitchHeight, v, smoothing); };
+  const handleSmoothing   = (v) => { setSmoothing(v);   scheduleRegenerate(stitchHeight, colorCount, v); };
+
+  // ── Color ops ──
+  const mergeColor = (fromId, toId) => {
+    pushUndo(pattern);
+    setPattern(p => {
+      if (!p) return p;
+      const newGrid = p.grid.map(c => c === fromId ? toId : c);
+      const newPalette = p.palette.filter(c => c.id !== fromId);
+      return { ...p, grid: newGrid, palette: newPalette };
+    });
+    if (selectedColor === fromId) setSelectedColor(null);
+  };
+
+  const deleteColor = (id) => {
+    pushUndo(pattern);
+    setPattern(p => {
+      if (!p) return p;
+      const others = p.palette.filter(c => c.id !== id);
+      if (others.length === 0) return p;
+      const target = p.palette.find(x => x.id === id);
+      const newGrid = p.grid.map(c => {
+        if (c !== id) return c;
+        let best = others[0].id, bestD = Infinity;
+        for (const o of others) {
+          const d = colorDistance(target.rgb, o.rgb);
+          if (d < bestD) { bestD = d; best = o.id; }
+        }
+        return best;
+      });
+      return { ...p, grid: newGrid, palette: others };
+    });
+    if (selectedColor === id) setSelectedColor(null);
+  };
+
+  const selectColorHandler = (id) => {
+    setStitchSelectMode(false);
+    setSelectedCells(new Set());
+    setSelectedColor(id);
+  };
+
+  const toggleStitchSelect = () => {
+    setStitchSelectMode(s => {
+      if (!s) setSelectedColor(null);
+      return !s;
+    });
+    setSelectedCells(new Set());
+    setCropMode(false);
+  };
+
+  const toggleCropMode = () => {
+    setCropMode(c => {
+      const next = !c;
+      if (next && pattern) setCropBounds({ x1: 0, y1: 0, x2: pattern.width - 1, y2: pattern.height - 1 });
+      else setCropBounds(null);
+      return next;
+    });
+    setStitchSelectMode(false);
+    setSelectedCells(new Set());
+    setSelectedColor(null);
+  };
+
+  const applyCrop = () => {
+    if (!cropBounds || !pattern) return;
+    const { x1, y1, x2, y2 } = cropBounds;
+    pushUndo(pattern);
+    setPattern(p => {
+      if (!p) return p;
+      const newWidth = x2 - x1 + 1;
+      const newHeight = y2 - y1 + 1;
+      const newGrid = [];
+      for (let cy = y1; cy <= y2; cy++) {
+        for (let cx = x1; cx <= x2; cx++) {
+          // Out-of-bounds cells become blank (for expansion)
+          if (cy < 0 || cy >= p.height || cx < 0 || cx >= p.width) newGrid.push(-1);
+          else newGrid.push(p.grid[cy * p.width + cx]);
+        }
+      }
+      const usedIds = new Set(newGrid.filter(c => c !== -1));
+      const newPalette = p.palette.filter(c => usedIds.has(c.id));
+      return { ...p, grid: newGrid, width: newWidth, height: newHeight, palette: newPalette };
+    });
+    setCropMode(false);
+    setCropBounds(null);
+  };
+
+  const addRow = (position) => {
+    if (!pattern) return;
+    pushUndo(pattern);
+    setPattern(p => {
+      const blankRow = Array(p.width).fill(-1);
+      const newGrid = position === 'top'
+        ? [...blankRow, ...p.grid]
+        : [...p.grid, ...blankRow];
+      return { ...p, grid: newGrid, height: p.height + 1 };
+    });
+    setShowAddRow(false);
+  };
+
+  const selectCell = (idxOrArray) => {
+    if (Array.isArray(idxOrArray)) {
+      setSelectedCells(prev => new Set([...prev, ...idxOrArray]));
+    } else {
+      setSelectedCells(prev => {
+        const next = new Set(prev);
+        if (next.has(idxOrArray)) next.delete(idxOrArray);
+        else next.add(idxOrArray);
+        return next;
+      });
+    }
+  };
+
+  const deleteSelectedCells = () => {
+    pushUndo(pattern);
+    setPattern(p => {
+      if (!p) return p;
+      const newGrid = [...p.grid];
+      selectedCells.forEach(idx => { newGrid[idx] = -1; });
+      const usedIds = new Set(newGrid.filter(c => c !== -1));
+      const newPalette = p.palette.filter(c => usedIds.has(c.id));
+      return { ...p, grid: newGrid, palette: newPalette, hasTransparency: true };
+    });
+    setSelectedCells(new Set());
+  };
+
+  const replaceSelectedCells = (colorId) => {
+    pushUndo(pattern);
+    setPattern(p => {
+      if (!p) return p;
+      const newGrid = [...p.grid];
+      selectedCells.forEach(idx => { newGrid[idx] = colorId; });
+      return { ...p, grid: newGrid };
+    });
+    setSelectedCells(new Set());
+  };
+
+  const fillSelectedWithNewColor = (hex) => {
+    if (!pattern || selectedCells.size === 0) return;
+    const dmc = findClosestDMC(hex);
+    const [r, g, b] = hexToRgb(dmc.hex);
+    pushUndo(pattern);
+    setPattern(p => {
+      if (!p) return p;
+      // Reuse existing palette entry if same DMC hex is already present
+      const existing = p.palette.find(c => c.hex.toLowerCase() === dmc.hex.toLowerCase());
+      let colorId, newPalette;
+      if (existing) {
+        colorId = existing.id;
+        newPalette = p.palette;
+      } else {
+        colorId = p.palette.length > 0 ? Math.max(...p.palette.map(c => c.id)) + 1 : 0;
+        newPalette = [...p.palette, { id: colorId, hex: dmc.hex, rgb: [r, g, b] }];
+      }
+      const newGrid = [...p.grid];
+      selectedCells.forEach(idx => { newGrid[idx] = colorId; });
+      return { ...p, grid: newGrid, palette: newPalette };
+    });
+    setSelectedCells(new Set());
+  };
+
+  const deleteColorTransparent = (id) => {
+    pushUndo(pattern);
+    setPattern(p => {
+      if (!p) return p;
+      const newGrid = p.grid.map(c => c === id ? -1 : c);
+      const newPalette = p.palette.filter(c => c.id !== id);
+      return { ...p, grid: newGrid, palette: newPalette, hasTransparency: true };
+    });
+    if (selectedColor === id) setSelectedColor(null);
+  };
+
+  const deleteSelectedColor = (id) => {
+    pushUndo(pattern);
+    setPattern(p => {
+      if (!p) return p;
+      const newGrid = p.grid.map(c => c === id ? -1 : c);
+      const newPalette = p.palette.filter(c => c.id !== id);
+      return { ...p, grid: newGrid, palette: newPalette, hasTransparency: true };
+    });
+    setSelectedColor(null);
+  };
+
+  const swapColor = (id, hex) => {
+    pushUndo(pattern);
+    const rgb = hexToRgb(hex);
+    setPattern(p => ({
+      ...p,
+      palette: p.palette.map(c => c.id === id ? { ...c, hex, rgb } : c),
+    }));
+  };
+
+  const paintCell = (idx, colorId) => {
+    if (!isPaintingRef.current) { pushUndo(pattern); isPaintingRef.current = true; }
+    setPattern(p => {
+      if (!p) return p;
+      const newGrid = [...p.grid];
+      newGrid[idx] = colorId;
+      return { ...p, grid: newGrid };
+    });
+  };
+
+  // ── AI Enhance: aggressive smoothing + remove tiny islands ──
+  const aiEnhance = () => {
+    if (!pattern) return;
+    pushUndo(pattern);
+    setPattern(p => {
+      // 3 passes of majority-rule smoothing
+      let grid = applySmoothing(p.grid, p.width, p.height, 3);
+      // Remove unused colors after smoothing
+      const usedIds = new Set(grid);
+      const newPalette = p.palette.filter(c => usedIds.has(c.id));
+      // If any colors were removed, remap
+      if (newPalette.length < p.palette.length) {
+        const remap = {};
+        newPalette.forEach((c, i) => { remap[c.id] = i; });
+        // For removed colors, find nearest remaining
+        p.palette.forEach(c => {
+          if (remap[c.id] === undefined) {
+            let best = newPalette[0].id, bestD = Infinity;
+            for (const o of newPalette) {
+              const d = colorDistance(c.rgb, o.rgb);
+              if (d < bestD) { bestD = d; best = o.id; }
+            }
+            remap[c.id] = remap[best] ?? 0;
+          }
+        });
+        grid = grid.map(c => remap[c] ?? 0);
+        return { ...p, grid, palette: newPalette.map((c, i) => ({ ...c, id: i })) };
+      }
+      return { ...p, grid };
+    });
+    setSelectedColor(null);
+  };
+
+  // ── Export to PNG ──
+  const exportPNG = () => {
+    if (!pattern) return;
+    const CELL = 10;
+    const canvas = document.createElement("canvas");
+    canvas.width = pattern.width * CELL;
+    canvas.height = pattern.height * CELL;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = canvasBg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (let y = 0; y < pattern.height; y++) {
+      for (let x = 0; x < pattern.width; x++) {
+        const ci = pattern.grid[y * pattern.width + x];
+        if (ci === -1) continue;
+        ctx.fillStyle = pattern.palette[ci]?.hex || "#ccc";
+        ctx.fillRect(x*CELL + 1, y*CELL + 1, CELL - 2, CELL - 2);
+      }
+    }
+    const a = document.createElement("a");
+    a.download = "needlepoint-pattern.png";
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+  };
+
+  // ── Export PDF / Print ──
+  const exportPDF = () => {
+    if (!pattern) return;
+    const CELL = 10;
+    const canvas = document.createElement("canvas");
+    canvas.width = pattern.width * CELL; canvas.height = pattern.height * CELL;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = canvasBg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (let y = 0; y < pattern.height; y++) {
+      for (let x = 0; x < pattern.width; x++) {
+        const ci = pattern.grid[y * pattern.width + x];
+        if (ci === -1) continue;
+        ctx.fillStyle = pattern.palette[ci]?.hex || "#ccc";
+        ctx.fillRect(x*CELL + 1, y*CELL + 1, CELL - 2, CELL - 2);
+      }
+    }
+    const imgURL = canvas.toDataURL("image/png");
+    const counts = {};
+    pattern.grid.forEach(c => { if (c !== -1) counts[c] = (counts[c]||0)+1; });
+    const total = pattern.grid.filter(c => c !== -1).length;
+    const rows = pattern.palette.map((c, i) => {
+      const dmc = findClosestDMC(c.hex);
+      const n = counts[c.id] || 0;
+      return `<tr><td style="text-align:center">${i+1}</td><td><span style="display:inline-block;width:18px;height:18px;background:${c.hex};border:1px solid #ccc;vertical-align:middle;border-radius:3px"></span> ${c.hex.toUpperCase()}</td><td><strong>DMC ${dmc.number}</strong><br/><span style="color:#666">${dmc.name}</span></td><td style="text-align:right">${n.toLocaleString()}</td><td style="text-align:right">${Math.round(n/total*100)}%</td></tr>`;
+    }).join('');
+    const w = window.open("", "_blank");
+    w.document.write(`<!DOCTYPE html><html><head><title>StitchCraft Pattern</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#222;max-width:900px;margin:0 auto}h1{font-size:22px;margin-bottom:4px}p{color:#666;font-size:13px;margin-bottom:20px}img{max-width:100%;image-rendering:pixelated;border:1px solid #ddd;border-radius:4px}table{border-collapse:collapse;margin-top:24px;width:100%}th{background:#f5f5f5;font-size:12px;text-align:left;padding:8px 12px;border:1px solid #ddd}td{font-size:12px;padding:7px 12px;border:1px solid #eee}tr:nth-child(even){background:#fafafa}button{margin-top:20px;padding:10px 24px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer}@media print{button{display:none}}</style></head><body><h1>🧵 StitchCraft Studio — Pattern</h1><p>${pattern.width} × ${pattern.height} stitches &nbsp;·&nbsp; ${pattern.palette.length} colors &nbsp;·&nbsp; ${total.toLocaleString()} total stitches</p><img src="${imgURL}"/><table><thead><tr><th>#</th><th>Color</th><th>DMC Thread</th><th>Stitches</th><th>%</th></tr></thead><tbody>${rows}</tbody></table><button onclick="window.print()">🖨 Print / Save as PDF</button></body></html>`);
+    w.document.close();
+  };
+
+  // ── Export CSV ──
+  const exportCSV = () => {
+    if (!pattern) return;
+    const counts = {};
+    pattern.grid.forEach(c => { if (c !== -1) counts[c] = (counts[c]||0)+1; });
+    const total = pattern.grid.filter(c => c !== -1).length;
+    const lines = [
+      `# StitchCraft Studio Pattern Export`,
+      `Size,${pattern.width} x ${pattern.height}`,
+      `Colors,${pattern.palette.length}`,
+      `Total Stitches,${total}`,
+      ``,
+      `Color Legend`,
+      `Index,Hex,DMC #,DMC Name,Stitch Count,Percentage`,
+      ...pattern.palette.map((c, i) => {
+        const dmc = findClosestDMC(c.hex);
+        return `${i+1},${c.hex.toUpperCase()},${dmc.number},"${dmc.name}",${counts[c.id]||0},${Math.round((counts[c.id]||0)/total*100)}%`;
+      }),
+      ``,
+      `Stitch Grid (color index; 0=transparent)`,
+      ...Array.from({ length: pattern.height }, (_, y) =>
+        Array.from({ length: pattern.width }, (_, x) => {
+          const ci = pattern.grid[y * pattern.width + x]; return ci === -1 ? 0 : ci+1;
+        }).join(',')
+      ),
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'needlepoint-pattern.csv'; a.click();
+  };
+
+  const colorCounts = pattern ? pattern.palette.reduce((acc, c) => {
+    acc[c.id] = pattern.grid.filter(g => g === c.id).length;
+    return acc;
+  }, {}) : {};
+  // Exclude transparent (-1) cells from total stitch count
+  const totalStitches = pattern ? pattern.grid.filter(c => c !== -1).length : 0;
+  const transparentCount = pattern ? pattern.grid.filter(c => c === -1).length : 0;
+
+  // ── Save to library ──
+  const saveToLibrary = () => {
+    if (!pattern || !saveName.trim()) return;
+    const CELL = Math.max(1, Math.floor(80 / Math.max(pattern.width, pattern.height)));
+    const thumb = document.createElement("canvas");
+    thumb.width = pattern.width * CELL;
+    thumb.height = pattern.height * CELL;
+    const ctx = thumb.getContext("2d");
+    for (let y = 0; y < pattern.height; y++) {
+      for (let x = 0; x < pattern.width; x++) {
+        const ci = pattern.grid[y * pattern.width + x];
+        ctx.fillStyle = pattern.palette[ci]?.hex || "#ccc";
+        ctx.fillRect(x*CELL, y*CELL, CELL, CELL);
+      }
+    }
+    setLibrary(l => [{
+      id: Date.now(),
+      name: saveName.trim(),
+      pattern: JSON.parse(JSON.stringify(pattern)),
+      thumb: thumb.toDataURL(),
+      date: new Date().toLocaleDateString(),
+    }, ...l]);
+    setSaveName("");
+  };
+
+  const loadFromLibrary = (entry) => {
+    setPattern(entry.pattern);
+    setSelectedColor(null);
+    setTab("create");
+  };
+
+  const smoothingLabel = smoothing === 0 ? "Off" : smoothing <= 2 ? "Light" : smoothing <= 4 ? "Medium" : "Heavy";
+
+  return (
+    <div style={{ minHeight:"100vh", background:"#f5f5f4", fontFamily:"Inter, -apple-system, sans-serif" }}>
+      {/* ── Header ── */}
+      <header style={{ background:"white", borderBottom:"1px solid #e5e5e3", position:"sticky", top:0, zIndex:30 }}>
+        <div style={{ maxWidth:1280, margin:"0 auto", padding:"0 24px", height:52, display:"flex", alignItems:"center", gap:16 }}>
+          {/* Logo */}
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginRight:8 }}>
+            <div style={{ width:30, height:30, borderRadius:8, background:"#1a1a18", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            </div>
+            <span style={{ fontSize:14, fontWeight:700, color:"#1a1a18", letterSpacing:"-0.01em" }}>StitchCraft</span>
+          </div>
+          {/* Nav */}
+          <nav style={{ display:"flex", gap:2, background:"#f4f4f3", borderRadius:9, padding:"3px" }}>
+            {[
+              { id:"create", icon:"plus", label:"Create" },
+              { id:"library", icon:"folder", label:`Library${library.length ? ` (${library.length})` : ""}` },
+              { id:"belt", icon:"package", label:`Belt${savedBelts.length ? ` (${savedBelts.length})` : ""}` },
+            ].map(({ id, icon, label }) => (
+              <button key={id} onClick={() => setTab(id)}
+                style={{ display:"flex", alignItems:"center", gap:6, padding:"5px 12px", borderRadius:7, fontSize:13, fontWeight: tab===id ? 600 : 400, border:"none", cursor:"pointer", transition:"all 120ms", background: tab===id ? "white" : "transparent", color: tab===id ? "#1a1a18" : "#6b6b68", boxShadow: tab===id ? "0 1px 3px rgba(0,0,0,0.08)" : "none" }}>
+                <Icon name={icon} size={14} strokeWidth={tab===id ? 2 : 1.5} />
+                {label}
+              </button>
+            ))}
+          </nav>
+          <div style={{ flex:1 }} />
+        </div>
+      </header>
+
+      {showCrop && rawSrc && (
+        <CropModal src={rawSrc} onDone={(c) => { setCroppedCanvas(c); setShowCrop(false); generate(c, stitchHeight, colorCount, smoothing); }} onCancel={() => setShowCrop(false)} />
+      )}
+
+      {/* ── CREATE ── */}
+      {tab === "create" && (
+        <div style={{ maxWidth:1280, margin:"0 auto", padding:"20px 24px", display:"flex", gap:20, alignItems:"flex-start" }}>
+
+          {/* ── Sidebar ── */}
+          <div style={{ width:256, flexShrink:0, display:"flex", flexDirection:"column", gap:2 }}>
+
+            {/* SOURCE */}
+            <div className="panel" style={{ padding:"16px" }}>
+              <div className="section-label">Source</div>
+              {croppedCanvas ? (
+                <div style={{ position:"relative", borderRadius:8, overflow:"hidden", border:"1px solid #e5e5e3" }}>
+                  <img src={croppedCanvas.toDataURL()} alt="source" style={{ width:"100%", objectFit:"contain", maxHeight:160, display:"block" }} />
+                  <button onClick={() => setShowCrop(true)}
+                    style={{ position:"absolute", top:6, right:6, background:"rgba(0,0,0,0.6)", color:"white", border:"none", borderRadius:5, padding:"3px 8px", fontSize:11, cursor:"pointer" }}>
+                    Re-crop
+                  </button>
+                </div>
+              ) : (
+                <div onClick={() => fileRef.current?.click()}
+                  style={{ border:"2px dashed #e5e5e3", borderRadius:10, height:120, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer", transition:"all 150ms", gap:6 }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor="#4f46e5"; e.currentTarget.style.background="#f8f7ff"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor="#e5e5e3"; e.currentTarget.style.background="transparent"; }}>
+                  <Icon name="upload" size={20} strokeWidth={1.5} className="text-neutral-400" />
+                  <div style={{ fontSize:13, fontWeight:500, color:"#6b6b68" }}>Click to upload</div>
+                  <div style={{ fontSize:11, color:"#a0a09d" }}>JPG, PNG, WebP, GIF</div>
+                </div>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => { setRawSrc(ev.target.result); setShowCrop(true); };
+                reader.readAsDataURL(file);
+                e.target.value = "";
+              }} />
+              <button onClick={() => fileRef.current?.click()} className="btn btn-secondary" style={{ width:"100%", marginTop:10, justifyContent:"center" }}>
+                <Icon name="upload" size={13} />
+                {croppedCanvas ? "Change Photo" : "Upload Image"}
+              </button>
+            </div>
+
+            {/* SETTINGS */}
+            <div className="panel" style={{ padding:"16px", marginTop:8 }}>
+              <div className="section-label">Settings</div>
+              {!croppedCanvas && (
+                <div style={{ fontSize:12, color:"#a0a09d", fontStyle:"italic", marginBottom:12 }}>Upload a photo to enable live preview</div>
+              )}
+              <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                {/* Belt height */}
+                <div>
+                  <div style={{ fontSize:12, fontWeight:500, color:"#3d3d3a", marginBottom:8 }}>Belt Height</div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
+                    {BELT_PRESETS.map(({ rows, label, sub }) => (
+                      <button key={rows} onClick={() => handleStitchHeight(rows)}
+                        style={{ textAlign:"left", padding:"8px 10px", borderRadius:7, border:"1px solid", fontSize:12, cursor:"pointer", transition:"all 120ms",
+                          background: stitchHeight===rows ? "#f8f7ff" : "white",
+                          borderColor: stitchHeight===rows ? "#4f46e5" : "#e5e5e3",
+                          color: stitchHeight===rows ? "#4338ca" : "#3d3d3a" }}>
+                        <div style={{ fontWeight:600, lineHeight:1.2 }}>{label}</div>
+                        <div style={{ fontSize:10, marginTop:2, color: stitchHeight===rows ? "#6366f1" : "#a0a09d" }}>{sub}</div>
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ fontSize:10, color:"#a0a09d", marginTop:6 }}>18-mesh belt canvas (21-row)</div>
+                </div>
+
+                <div style={{ height:1, background:"#f0f0ee" }} />
+
+                {/* Color limit */}
+                <div>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                    <div style={{ fontSize:12, fontWeight:500, color:"#3d3d3a" }}>Color Limit</div>
+                    <span style={{ fontSize:11, fontWeight:600, fontFamily:"monospace", background:"#f4f4f3", color:"#4f46e5", padding:"2px 6px", borderRadius:4 }}>{colorCount}</span>
+                  </div>
+                  <input type="range" min={1} max={30} value={colorCount} onChange={e => handleColorCount(+e.target.value)} style={{ width:"100%" }} />
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:"#c0c0bc", marginTop:2 }}><span>1</span><span>30</span></div>
+                </div>
+
+                <div style={{ height:1, background:"#f0f0ee" }} />
+
+                {/* Smoothing */}
+                <div>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                    <div style={{ fontSize:12, fontWeight:500, color:"#3d3d3a" }}>Smoothing</div>
+                    <span style={{ fontSize:11, fontWeight:600, fontFamily:"monospace", background:"#f4f4f3", color:"#4f46e5", padding:"2px 6px", borderRadius:4 }}>{smoothingLabel}</span>
+                  </div>
+                  <input type="range" min={0} max={6} value={smoothing} onChange={e => handleSmoothing(+e.target.value)} style={{ width:"100%" }} />
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:"#c0c0bc", marginTop:2 }}><span>Off</span><span>Heavy</span></div>
+                </div>
+
+                <div style={{ height:1, background:"#f0f0ee" }} />
+
+                {/* Canvas background */}
+                <div>
+                  <div style={{ fontSize:12, fontWeight:500, color:"#3d3d3a", marginBottom:8 }}>Canvas Background</div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:6, alignItems:"center" }}>
+                    {CANVAS_BG_PRESETS.map(({ hex, label }) => (
+                      <button key={hex} onClick={() => setCanvasBg(hex)} title={label}
+                        style={{ width:24, height:24, borderRadius:6, border:`2px solid ${canvasBg===hex ? "#4f46e5" : "rgba(0,0,0,0.12)"}`, cursor:"pointer", background:hex, transition:"all 120ms", transform: canvasBg===hex ? "scale(1.15)" : "scale(1)" }} />
+                    ))}
+                    <input type="color" value={canvasBg} onChange={e => setCanvasBg(e.target.value)} title="Custom"
+                      style={{ width:24, height:24, borderRadius:6, border:"1px solid #e5e5e3", cursor:"pointer", padding:2 }} />
+                  </div>
+                </div>
+              </div>
+
+              {generating && (
+                <div style={{ marginTop:12, display:"flex", alignItems:"center", gap:6, fontSize:12, color:"#6366f1" }}>
+                  <div className="animate-spin" style={{ width:12, height:12, border:"2px solid #c7d2fe", borderTopColor:"#4f46e5", borderRadius:"50%" }} />
+                  Updating pattern…
+                </div>
+              )}
+            </div>
+
+            {/* SAVE */}
+            {pattern && (
+              <div className="panel" style={{ padding:"16px", marginTop:8 }}>
+                <div className="section-label">Save</div>
+                <input type="text" placeholder="Pattern name…" value={saveName}
+                  onChange={e => setSaveName(e.target.value)} onKeyDown={e => e.key==="Enter" && saveToLibrary()}
+                  style={{ width:"100%", border:"1px solid #e5e5e3", borderRadius:7, padding:"7px 10px", fontSize:13, outline:"none", color:"#1a1a18" }}
+                  onFocus={e => e.target.style.borderColor="#4f46e5"}
+                  onBlur={e => e.target.style.borderColor="#e5e5e3"} />
+                <button onClick={saveToLibrary} disabled={!saveName.trim()} className="btn btn-secondary"
+                  style={{ width:"100%", marginTop:8, justifyContent:"center" }}>
+                  <Icon name="save" size={13} />
+                  Save to Library
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ── Main Area ── */}
+          <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:12 }}>
+
+            {!pattern && !generating && (
+              <div className="panel" style={{ height:400, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:12 }}>
+                <div style={{ width:48, height:48, borderRadius:12, background:"#f4f4f3", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <Icon name="layers" size={22} strokeWidth={1.5} className="text-neutral-400" />
+                </div>
+                <div style={{ fontSize:16, fontWeight:600, color:"#1a1a18" }}>No pattern yet</div>
+                <div style={{ fontSize:13, color:"#a0a09d", maxWidth:280, textAlign:"center", lineHeight:1.5 }}>
+                  Upload a photo and adjust the settings — the pattern updates live as you move the sliders.
+                </div>
+              </div>
+            )}
+
+            {generating && !pattern && (
+              <div className="panel" style={{ height:400, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:12 }}>
+                <div className="animate-spin" style={{ width:32, height:32, border:"3px solid #e0e7ff", borderTopColor:"#4f46e5", borderRadius:"50%" }} />
+                <div style={{ fontSize:13, color:"#6b6b68" }}>Generating pattern…</div>
+              </div>
+            )}
+
+            {pattern && (
+              <>
+                {/* ── Toolbar ── */}
+                <div className="panel" style={{ padding:"8px 12px", display:"flex", alignItems:"center", gap:4 }}>
+                  {/* Pattern info */}
+                  <div style={{ display:"flex", alignItems:"center", gap:8, paddingRight:8 }}>
+                    {generating && <div className="animate-spin" style={{ width:12, height:12, border:"2px solid #c7d2fe", borderTopColor:"#4f46e5", borderRadius:"50%", flexShrink:0 }} />}
+                    <span style={{ fontSize:12, color:"#a0a09d" }}>
+                      <strong style={{ color:"#1a1a18", fontWeight:600 }}>{pattern.width}×{pattern.height}</strong>
+                      {" · "}
+                      <strong style={{ color:"#1a1a18", fontWeight:600 }}>{pattern.palette.length}</strong> colors
+                    </span>
+                  </div>
+
+                  <div style={{ width:1, height:20, background:"#e5e5e3", margin:"0 4px" }} />
+
+                  {/* Undo/Redo */}
+                  <button onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)" className="btn btn-ghost btn-icon">
+                    <Icon name="rotateCcw" size={14} />
+                  </button>
+                  <button onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)" className="btn btn-ghost btn-icon">
+                    <Icon name="rotateCw" size={14} />
+                  </button>
+
+                  <div style={{ width:1, height:20, background:"#e5e5e3", margin:"0 4px" }} />
+
+                  {/* Zoom */}
+                  <button onClick={() => setPatternZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2)))} className="btn btn-ghost btn-icon btn-sm">
+                    <Icon name="minus" size={13} />
+                  </button>
+                  <span style={{ fontSize:11, color:"#a0a09d", minWidth:32, textAlign:"center", userSelect:"none" }}>{Math.round(patternZoom*100)}%</span>
+                  <button onClick={() => setPatternZoom(z => Math.min(4, +(z + 0.25).toFixed(2)))} className="btn btn-ghost btn-icon btn-sm">
+                    <Icon name="plus" size={13} />
+                  </button>
+
+                  <div style={{ flex:1 }} />
+
+                  {/* Mode buttons */}
+                  <button onClick={toggleStitchSelect} className={`btn btn-secondary btn-sm ${stitchSelectMode ? "active" : ""}`}>
+                    <Icon name="pointer" size={13} />
+                    Select
+                  </button>
+
+                  {cropMode ? (
+                    <>
+                      <button onClick={applyCrop} className="btn btn-primary btn-sm">
+                        <Icon name="check" size={13} />
+                        Confirm Crop
+                      </button>
+                      <button onClick={toggleCropMode} className="btn btn-secondary btn-sm">
+                        <Icon name="x" size={13} />
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button onClick={toggleCropMode} className={`btn btn-secondary btn-sm ${cropMode ? "active" : ""}`}>
+                      <Icon name="crop" size={13} />
+                      Crop
+                    </button>
+                  )}
+
+                  {showAddRow ? (
+                    <>
+                      <button onClick={() => addRow('top')} className="btn btn-primary btn-sm">
+                        <Icon name="arrowUp" size={13} />
+                        Top
+                      </button>
+                      <button onClick={() => addRow('bottom')} className="btn btn-primary btn-sm">
+                        <Icon name="arrowDown" size={13} />
+                        Bottom
+                      </button>
+                      <button onClick={() => setShowAddRow(false)} className="btn btn-secondary btn-sm">
+                        <Icon name="x" size={13} />
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button onClick={() => setShowAddRow(true)} className="btn btn-secondary btn-sm">
+                      <Icon name="plus" size={13} />
+                      Add Row
+                    </button>
+                  )}
+
+                  <button onClick={() => setZoomOut(z => !z)} className={`btn btn-secondary btn-sm ${zoomOut ? "active" : ""}`}>
+                    <Icon name="eye" size={13} />
+                    {zoomOut ? "Edit" : "Preview"}
+                  </button>
+
+                  <button onClick={aiEnhance} className="btn btn-secondary btn-sm">
+                    <Icon name="wand2" size={13} />
+                    Enhance
+                  </button>
+
+                  <div style={{ width:1, height:20, background:"#e5e5e3", margin:"0 4px" }} />
+
+                  {/* Export */}
+                  <div style={{ position:"relative" }} ref={exportMenuRef}>
+                    <button onClick={() => setExportMenuOpen(o => !o)} className="btn btn-primary btn-sm">
+                      <Icon name="download" size={13} />
+                      Export
+                      <Icon name="chevronDown" size={11} />
+                    </button>
+                    {exportMenuOpen && (
+                      <div style={{ position:"absolute", right:0, top:"calc(100% + 4px)", zIndex:30, background:"white", border:"1px solid #e5e5e3", borderRadius:10, boxShadow:"0 8px 24px rgba(0,0,0,0.1)", padding:"4px", minWidth:140 }}>
+                        {[
+                          { label:"PNG image", action: exportPNG },
+                          { label:"PDF / Print", action: exportPDF },
+                          { label:"CSV chart", action: exportCSV },
+                        ].map(({ label, action }) => (
+                          <button key={label} onClick={() => { action(); setExportMenuOpen(false); }}
+                            style={{ display:"block", width:"100%", textAlign:"left", padding:"7px 10px", fontSize:12, color:"#3d3d3a", background:"transparent", border:"none", borderRadius:7, cursor:"pointer", transition:"background 100ms" }}
+                            onMouseEnter={e => e.currentTarget.style.background="#f4f4f3"}
+                            onMouseLeave={e => e.currentTarget.style.background="transparent"}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── Canvas Area ── */}
+                <div className="panel" style={{ padding:0, overflow:"hidden" }}>
+                  {zoomOut ? (
+                    <div style={{ padding:"20px" }}>
+                      <ZoomPreview grid={pattern.grid} width={pattern.width} height={pattern.height} palette={pattern.palette} canvasBg={canvasBg} />
+                    </div>
+                  ) : (
+                    <>
+                      {/* Context strip */}
+                      <div style={{ padding:"8px 14px", borderBottom:"1px solid #f0f0ee", display:"flex", alignItems:"center", gap:8, minHeight:38, flexWrap:"wrap" }}>
+                        {cropMode ? (
+                          <>
+                            <div style={{ display:"flex", alignItems:"center", gap:5, fontSize:12, fontWeight:600, color:"#059669" }}>
+                              <Icon name="crop" size={13} />
+                              Crop mode
+                            </div>
+                            <span style={{ color:"#e5e5e3" }}>|</span>
+                            <span style={{ fontSize:11, color:"#a0a09d" }}>Drag edge or corner handles to resize · outward to expand</span>
+                            {cropBounds && <span style={{ fontSize:12, fontWeight:700, color:"#059669", marginLeft:2 }}>{cropBounds.x2 - cropBounds.x1 + 1} × {cropBounds.y2 - cropBounds.y1 + 1}</span>}
+                          </>
+                        ) : stitchSelectMode ? (
+                          <>
+                            <div style={{ display:"flex", alignItems:"center", gap:5, fontSize:12, fontWeight:600, color:"#4f46e5" }}>
+                              <Icon name="pointer" size={13} />
+                              Select mode
+                            </div>
+                            <span style={{ color:"#e5e5e3" }}>|</span>
+                            <span style={{ fontSize:11, color:"#a0a09d" }}>Click or drag to select stitches</span>
+                            {selectedCells.size > 0 && (
+                              <>
+                                <span style={{ color:"#e5e5e3" }}>|</span>
+                                <span style={{ fontSize:12, fontWeight:600, color:"#1a1a18" }}>{selectedCells.size} selected</span>
+                                <button onClick={deleteSelectedCells} className="btn btn-danger-ghost btn-sm">
+                                  <Icon name="trash2" size={11} />
+                                  Delete
+                                </button>
+                                <span style={{ fontSize:11, color:"#a0a09d" }}>Fill:</span>
+                                {pattern.palette.map(c => (
+                                  <button key={c.id} onClick={() => replaceSelectedCells(c.id)}
+                                    style={{ width:18, height:18, borderRadius:"50%", border:"2px solid white", boxShadow:"0 0 0 1px rgba(0,0,0,0.12)", cursor:"pointer", background:c.hex, flexShrink:0, transition:"transform 120ms" }}
+                                    onMouseEnter={e => e.currentTarget.style.transform="scale(1.25)"}
+                                    onMouseLeave={e => e.currentTarget.style.transform="scale(1)"}
+                                    title={`DMC ${findClosestDMC(c.hex).number}`} />
+                                ))}
+                                <label title="Fill with a new color (snaps to nearest DMC)"
+                                  style={{ width:18, height:18, borderRadius:"50%", border:"2px dashed #a0a09d", cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", transition:"transform 120ms", position:"relative" }}
+                                  onMouseEnter={e => e.currentTarget.style.transform="scale(1.25)"}
+                                  onMouseLeave={e => e.currentTarget.style.transform="scale(1)"}>
+                                  <input type="color" onChange={e => fillSelectedWithNewColor(e.target.value)}
+                                    style={{ opacity:0, position:"absolute", width:0, height:0, pointerEvents:"none" }} />
+                                  <Icon name="plus" size={10} />
+                                </label>
+                                <button onClick={() => setSelectedCells(new Set())} className="btn btn-ghost btn-sm">
+                                  <Icon name="x" size={11} />
+                                  Clear
+                                </button>
+                              </>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <span style={{ fontSize:11, color:"#a0a09d" }}>Paint:</span>
+                            {pattern.palette.slice().sort((a,b) => (colorCounts[b.id]||0)-(colorCounts[a.id]||0)).map(c => (
+                              <button key={c.id} onClick={() => selectColorHandler(c.id)}
+                                style={{ width:20, height:20, borderRadius:"50%", border:`2px solid ${selectedColor===c.id ? "#4f46e5" : "white"}`, boxShadow: selectedColor===c.id ? "0 0 0 1px #4f46e5, 0 2px 6px rgba(79,70,229,0.3)" : "0 0 0 1px rgba(0,0,0,0.1)", cursor:"pointer", background:c.hex, flexShrink:0, transform: selectedColor===c.id ? "scale(1.15)" : "scale(1)", transition:"all 120ms" }}
+                                title={`DMC ${findClosestDMC(c.hex).number}`} />
+                            ))}
+                            {selectedColor !== null && (
+                              <>
+                                <span style={{ color:"#e5e5e3" }}>|</span>
+                                <span style={{ fontSize:11, color:"#6b6b68" }}>{(() => { const d = findClosestDMC(pattern.palette.find(c=>c.id===selectedColor)?.hex||"#000"); return `DMC ${d.number} · ${d.name}`; })()}</span>
+                                <button onClick={() => deleteSelectedColor(selectedColor)} className="btn btn-danger-ghost btn-sm">
+                                  <Icon name="trash2" size={11} />
+                                  Delete all
+                                </button>
+                                <button onClick={() => setSelectedColor(null)} className="btn btn-ghost btn-icon btn-sm">
+                                  <Icon name="x" size={11} />
+                                </button>
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      {/* Canvas wrapper — matches belt background so deleted stitches reveal it */}
+                      <div style={{ padding:"20px", background: canvasBg, overflow:"auto", transition:"background 200ms" }}>
+                        <PatternCanvas
+                          grid={pattern.grid} width={pattern.width} height={pattern.height}
+                          palette={pattern.palette} selectedColor={selectedColor} onCellPaint={paintCell}
+                          zoom={patternZoom} onPaintEnd={() => { isPaintingRef.current = false; }}
+                          onColorPick={selectColorHandler} canvasBg={canvasBg}
+                          stitchSelectMode={stitchSelectMode} selectedCells={selectedCells} onCellSelect={selectCell}
+                          cropMode={cropMode} cropBounds={cropBounds} onCropBoundsChange={setCropBounds}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* ── Palette ── */}
+                <div className="panel">
+                  <div style={{ padding:"12px 14px 8px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #f0f0ee" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                      <Icon name="palette" size={14} className="text-neutral-400" strokeWidth={1.5} />
+                      <span style={{ fontSize:12, fontWeight:600, color:"#1a1a18" }}>Color Palette</span>
+                      <span style={{ fontSize:11, color:"#a0a09d", background:"#f4f4f3", padding:"1px 6px", borderRadius:10 }}>{pattern.palette.length}</span>
+                    </div>
+                    <span style={{ fontSize:11, color:"#c0c0bc" }}>Click swatch to select · ⋯ to edit</span>
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr" }}>
+                    {pattern.palette
+                      .slice().sort((a,b) => (colorCounts[b.id]||0) - (colorCounts[a.id]||0))
+                      .map(color => (
+                        <ColorSwatch key={color.id} color={color}
+                          count={colorCounts[color.id]||0} total={totalStitches}
+                          isSelected={selectedColor === color.id}
+                          onSelect={setSelectedColor} onMerge={mergeColor}
+                          onDelete={deleteColor} onDeleteTransparent={deleteColorTransparent} onSwap={swapColor} palette={pattern.palette}
+                        />
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── LIBRARY ── */}
+      {tab === "library" && (
+        <div style={{ maxWidth:1280, margin:"0 auto", padding:"24px" }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+            <div>
+              <h2 style={{ fontSize:18, fontWeight:700, color:"#1a1a18", margin:0 }}>Library</h2>
+              <p style={{ fontSize:13, color:"#a0a09d", margin:"3px 0 0" }}>{library.length === 0 ? "No saved patterns yet" : `${library.length} pattern${library.length !== 1 ? "s" : ""}`}</p>
+            </div>
+            <button onClick={() => setTab("create")} className="btn btn-primary">
+              <Icon name="plus" size={14} />
+              New Pattern
+            </button>
+          </div>
+
+          {library.length === 0 ? (
+            <div className="panel" style={{ padding:64, textAlign:"center" }}>
+              <div style={{ width:48, height:48, borderRadius:12, background:"#f4f4f3", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 12px" }}>
+                <Icon name="folder" size={22} strokeWidth={1.5} className="text-neutral-400" />
+              </div>
+              <div style={{ fontSize:14, fontWeight:600, color:"#1a1a18", marginBottom:6 }}>No saved patterns yet</div>
+              <div style={{ fontSize:13, color:"#a0a09d" }}>Generate a pattern, then name and save it from the Create tab.</div>
+            </div>
+          ) : (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(160px, 1fr))", gap:12 }}>
+              {library.map(entry => (
+                <div key={entry.id} className="panel" style={{ overflow:"hidden", cursor:"default", transition:"box-shadow 120ms" }}
+                  onMouseEnter={e => e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,0.08)"}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow=""}>
+                  <div style={{ background:"#f8f8f7", display:"flex", alignItems:"center", justifyContent:"center", padding:16, borderBottom:"1px solid #f0f0ee", minHeight:100 }}>
+                    <img src={entry.thumb} alt={entry.name} style={{ imageRendering:"pixelated", maxWidth:"100%", maxHeight:80 }} />
+                  </div>
+                  <div style={{ padding:"10px 12px" }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:"#1a1a18", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{entry.name}</div>
+                    <div style={{ fontSize:11, color:"#a0a09d", marginTop:2 }}>{entry.pattern.width}×{entry.pattern.height} · {entry.pattern.palette.length} colors</div>
+                    <div style={{ fontSize:10, color:"#c0c0bc", marginTop:2 }}>{entry.date}</div>
+                    <div style={{ display:"flex", gap:6, marginTop:10 }}>
+                      <button onClick={() => loadFromLibrary(entry)} className="btn btn-secondary btn-sm" style={{ flex:1, justifyContent:"center" }}>Edit</button>
+                      <button onClick={() => { setBeltSlots(s => [...s, { id: Date.now(), pattern: entry.pattern, thumb: entry.thumb, name: entry.name }]); setTab("belt"); }}
+                        className="btn btn-secondary btn-sm" style={{ flex:1, justifyContent:"center" }}>+ Belt</button>
+                      <button onClick={() => setLibrary(l => l.filter(e => e.id !== entry.id))}
+                        className="btn btn-ghost btn-icon btn-sm" style={{ color:"#ef4444" }}>
+                        <Icon name="trash2" size={12} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── BELT DESIGNER ── */}
+      {tab === "belt" && (
+        <div ref={beltDesignerRef} style={{ maxWidth:1280, margin:"0 auto", padding:"24px", display:"flex", flexDirection:"column", gap:16 }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div>
+              <h2 style={{ fontSize:18, fontWeight:700, color:"#1a1a18", margin:0 }}>Belt Designer</h2>
+              <p style={{ fontSize:13, color:"#a0a09d", margin:"3px 0 0" }}>Arrange saved icons into a full belt layout</p>
+            </div>
+            <button onClick={() => setTab("library")} className="btn btn-primary">
+              <Icon name="plus" size={14} />
+              Add from Library
+            </button>
+          </div>
+
+          {/* Belt Controls */}
+          <div className="panel" style={{ padding:"16px", display:"flex", flexWrap:"wrap", gap:20, alignItems:"flex-end" }}>
+            <div>
+              <div style={{ fontSize:11, fontWeight:500, color:"#6b6b68", marginBottom:6 }}>Background</div>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <input type="color" value={beltBg} onChange={e => setBeltBg(e.target.value)}
+                  style={{ width:32, height:28, borderRadius:6, border:"1px solid #e5e5e3", cursor:"pointer", padding:2 }} />
+                <span style={{ fontSize:11, fontFamily:"monospace", color:"#6b6b68" }}>{beltBg.toUpperCase()}</span>
+              </div>
+            </div>
+            <div>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                <span style={{ fontSize:11, fontWeight:500, color:"#6b6b68" }}>Icon Spacing</span>
+                <span style={{ fontSize:11, fontFamily:"monospace", color:"#4f46e5", marginLeft:12 }}>{beltSpacing}px</span>
+              </div>
+              <input type="range" min={0} max={20} value={beltSpacing} onChange={e => setBeltSpacing(+e.target.value)} style={{ width:120 }} />
+            </div>
+            <div>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+                <span style={{ fontSize:11, fontWeight:500, color:"#6b6b68" }}>Belt Length</span>
+                <span style={{ fontSize:11, fontFamily:"monospace", color:"#4f46e5", marginLeft:12 }}>{beltLength}</span>
+              </div>
+              <input type="range" min={100} max={750} step={6} value={beltLength} onChange={e => setBeltLength(+e.target.value)} style={{ width:160 }} />
+            </div>
+            <div style={{ flex:1 }} />
+            <div style={{ display:"flex", gap:8, alignItems:"flex-end" }}>
+              {editingBeltId && (
+                <span style={{ fontSize:11, color:"#4f46e5", fontWeight:500, alignSelf:"center" }}>Editing saved belt</span>
+              )}
+              <input type="text" placeholder="Belt name…" value={beltName} onChange={e => setBeltName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key !== "Enter" || !beltName.trim() || beltSlots.length === 0) return;
+                  if (editingBeltId) {
+                    setSavedBelts(b => b.map(bb => bb.id === editingBeltId ? { ...bb, name: beltName.trim(), slots: JSON.parse(JSON.stringify(beltSlots)), bg: beltBg, spacing: beltSpacing, length: beltLength, date: new Date().toLocaleDateString() } : bb));
+                    setEditingBeltId(null);
+                  } else {
+                    setSavedBelts(b => [{ id: Date.now(), name: beltName.trim(), slots: JSON.parse(JSON.stringify(beltSlots)), bg: beltBg, spacing: beltSpacing, length: beltLength, date: new Date().toLocaleDateString() }, ...b]);
+                  }
+                  setBeltName("");
+                }}
+                style={{ border:`1px solid ${editingBeltId ? "#4f46e5" : "#e5e5e3"}`, borderRadius:7, padding:"7px 10px", fontSize:13, outline:"none", color:"#1a1a18", width:160 }}
+                onFocus={e => e.target.style.borderColor="#4f46e5"}
+                onBlur={e => e.target.style.borderColor= editingBeltId ? "#4f46e5" : "#e5e5e3"} />
+              {editingBeltId && (
+                <button onClick={() => { setEditingBeltId(null); setBeltName(""); }} className="btn btn-secondary btn-sm">
+                  <Icon name="x" size={13} />
+                  Cancel
+                </button>
+              )}
+              <button disabled={!beltName.trim() || beltSlots.length === 0}
+                onClick={() => {
+                  if (!beltName.trim() || beltSlots.length === 0) return;
+                  if (editingBeltId) {
+                    setSavedBelts(b => b.map(bb => bb.id === editingBeltId ? { ...bb, name: beltName.trim(), slots: JSON.parse(JSON.stringify(beltSlots)), bg: beltBg, spacing: beltSpacing, length: beltLength, date: new Date().toLocaleDateString() } : bb));
+                    setEditingBeltId(null);
+                  } else {
+                    setSavedBelts(b => [{ id: Date.now(), name: beltName.trim(), slots: JSON.parse(JSON.stringify(beltSlots)), bg: beltBg, spacing: beltSpacing, length: beltLength, date: new Date().toLocaleDateString() }, ...b]);
+                  }
+                  setBeltName("");
+                }}
+                className="btn btn-primary">
+                <Icon name="save" size={13} />
+                {editingBeltId ? "Update Belt" : "Save Belt"}
+              </button>
+            </div>
+          </div>
+
+          {/* Icon Slots */}
+          <div className="panel" style={{ padding:"16px" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+              <div className="section-label" style={{ marginBottom:0 }}>Icon Slots — drag to reorder</div>
+              {beltSlots.length > 0 && <button onClick={() => setBeltSlots([])} className="btn btn-danger-ghost btn-sm">Clear all</button>}
+            </div>
+            {beltSlots.length === 0 ? (
+              <div style={{ border:"2px dashed #e5e5e3", borderRadius:10, height:96, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:6 }}>
+                <Icon name="package" size={18} strokeWidth={1.5} className="text-neutral-400" />
+                <div style={{ fontSize:13, color:"#a0a09d" }}>Go to <strong>Library</strong> and click <strong>+ Belt</strong> on any pattern</div>
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:10 }}>
+                {beltSlots.map((slot, idx) => (
+                  <div key={slot.id} draggable
+                    onDragStart={e => { e.dataTransfer.setData("slotIdx", String(idx)); e.dataTransfer.effectAllowed = "move"; }}
+                    onDragOver={e => { e.preventDefault(); setDragOverSlot(idx); }}
+                    onDragLeave={() => setDragOverSlot(null)}
+                    onDrop={e => { e.preventDefault(); const from = parseInt(e.dataTransfer.getData("slotIdx")); if (isNaN(from) || from === idx) { setDragOverSlot(null); return; } setBeltSlots(s => { const next = [...s]; const [moved] = next.splice(from, 1); next.splice(idx, 0, moved); return next; }); setDragOverSlot(null); }}
+                    style={{ position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap:4, padding:8, borderRadius:10, border:`1.5px solid ${dragOverSlot===idx ? "#4f46e5" : "#e5e5e3"}`, cursor:"grab", userSelect:"none", background: dragOverSlot===idx ? "#f8f7ff" : "white", minWidth:70, transition:"all 120ms" }}>
+                    <span style={{ fontSize:10, color:"#c0c0bc", position:"absolute", top:4, left:6 }}>#{idx+1}</span>
+                    <img src={slot.thumb} alt={slot.name} style={{ imageRendering:"pixelated", width:48, height:48, objectFit:"contain" }} />
+                    <div style={{ fontSize:11, color:"#6b6b68", maxWidth:64, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textAlign:"center" }}>{slot.name}</div>
+                    <button onClick={() => setBeltSlots(s => s.filter((_,i) => i !== idx))}
+                      style={{ position:"absolute", top:-6, right:-6, width:18, height:18, borderRadius:"50%", background:"#fee2e2", color:"#ef4444", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10 }}>
+                      <Icon name="x" size={9} />
+                    </button>
+                  </div>
+                ))}
+                <div onDragOver={e => { e.preventDefault(); setDragOverSlot(beltSlots.length); }} onDragLeave={() => setDragOverSlot(null)}
+                  onDrop={e => { e.preventDefault(); const from = parseInt(e.dataTransfer.getData("slotIdx")); if (!isNaN(from)) { setBeltSlots(s => { const next = [...s]; const [m] = next.splice(from, 1); next.push(m); return next; }); } setDragOverSlot(null); }}
+                  style={{ width:70, height:88, borderRadius:10, border:`2px dashed ${dragOverSlot===beltSlots.length ? "#4f46e5" : "#e5e5e3"}`, display:"flex", alignItems:"center", justifyContent:"center", color: dragOverSlot===beltSlots.length ? "#4f46e5" : "#c0c0bc", transition:"all 120ms", fontSize:20 }}>
+                  +
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Live belt preview */}
+          <div className="panel" style={{ padding:"16px" }}>
+            <div className="section-label">Belt Preview</div>
+            <BeltPreview slots={beltSlots} bg={beltBg} spacing={beltSpacing} beltLength={beltLength} />
+          </div>
+
+          {/* Saved belts */}
+          {savedBelts.length > 0 && (
+            <div className="panel" style={{ padding:"16px" }}>
+              <div className="section-label">Saved Belts</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                {savedBelts.map(belt => {
+                  const isEditing = editingBeltId === belt.id;
+                  return (
+                    <div key={belt.id} style={{ border:`1.5px solid ${isEditing ? "#4f46e5" : "#e5e5e3"}`, borderRadius:10, padding:12, background: isEditing ? "#f8f7ff" : "white", transition:"border-color 120ms" }}
+                      onMouseEnter={e => { if (!isEditing) e.currentTarget.style.borderColor="#d4d4d2"; }}
+                      onMouseLeave={e => { if (!isEditing) e.currentTarget.style.borderColor="#e5e5e3"; }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                        <div>
+                          <div style={{ fontSize:13, fontWeight:600, color: isEditing ? "#4f46e5" : "#1a1a18" }}>
+                            {belt.name}
+                            {isEditing && <span style={{ fontSize:11, fontWeight:400, marginLeft:8, color:"#4f46e5" }}>— editing</span>}
+                          </div>
+                          <div style={{ fontSize:11, color:"#a0a09d", marginTop:2 }}>{belt.slots.length} icons · {belt.length} stitches · {belt.date}</div>
+                        </div>
+                        <div style={{ display:"flex", gap:8 }}>
+                          <button onClick={() => {
+                            setBeltSlots(JSON.parse(JSON.stringify(belt.slots)));
+                            setBeltBg(belt.bg);
+                            setBeltSpacing(belt.spacing);
+                            setBeltLength(belt.length);
+                            setBeltName(belt.name);
+                            setEditingBeltId(belt.id);
+                            beltDesignerRef.current?.scrollIntoView({ behavior:"smooth", block:"start" });
+                          }} className={`btn btn-sm ${isEditing ? "btn-primary" : "btn-secondary"}`}>
+                            <Icon name="settings2" size={12} />
+                            Edit
+                          </button>
+                          <button onClick={() => { setSavedBelts(b => b.filter(bb => bb.id !== belt.id)); if (isEditing) { setEditingBeltId(null); setBeltName(""); } }}
+                            className="btn btn-ghost btn-icon btn-sm" style={{ color:"#ef4444" }}>
+                            <Icon name="trash2" size={12} />
+                          </button>
+                        </div>
+                      </div>
+                      <BeltPreview slots={belt.slots} bg={belt.bg} spacing={belt.spacing} beltLength={belt.length} compact />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<NeedlepointApp />);
+  </script>
+</body>
+</html>
